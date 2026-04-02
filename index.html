@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prelude Details</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { overflow: hidden; height: 100%; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        background: #f5f4f0;
+        overflow-y: auto;
+        height: 100%;
+      }
+      /* Hide scrollbar by default, show on scroll */
+      body::-webkit-scrollbar { width: 8px; }
+      body::-webkit-scrollbar-track { background: transparent; }
+      body::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+      body.is-scrolling::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+      body.is-scrolling::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+      /* Firefox */
+      body { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      body.is-scrolling { scrollbar-color: rgba(0,0,0,0.18) transparent; }
+      button, input, select, textarea, option {
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        color: inherit;
+      }
+      button { cursor: pointer; }
+      .dropdown-item:hover { background: #fafaf8 !important; }
+      table { border-collapse: collapse; border-spacing: 0; }
+
+      /* View More button */
+      .view-more-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 6px;
+        border: 1px solid #e0dfda;
+        background: #fff;
+        color: #4a4a46;
+        white-space: nowrap;
+        transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+                    background 160ms ease,
+                    border-color 160ms ease,
+                    box-shadow 160ms ease;
+      }
+      .view-more-btn:hover {
+        background: #fafaf8;
+        border-color: #d0cfca;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      }
+      .view-more-btn:active {
+        transform: scale(0.97);
+      }
+      .view-more-btn .arrow {
+        display: inline-block;
+        transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .view-more-btn:hover .arrow {
+        transform: translateX(2px);
+      }
+      .view-more-btn.back:hover .arrow {
+        transform: translateX(-2px);
+      }
+
+      /* Page transitions */
+      @keyframes fadeSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeSlideOut {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+      .page-enter {
+        animation: fadeSlideIn 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+
+      /* Stagger for analytics cards */
+      .analytics-card {
+        animation: fadeSlideIn 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .analytics-card:nth-child(1) { animation-delay: 0ms; }
+      .analytics-card:nth-child(2) { animation-delay: 50ms; }
+      .analytics-card:nth-child(3) { animation-delay: 100ms; }
+      .analytics-card:nth-child(4) { animation-delay: 150ms; }
+      .analytics-full {
+        animation: fadeSlideIn 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 200ms;
+      }
+
+      /* KPI tooltip — transition-driven enter/exit */
+      .kpi-tooltip {
+        position: absolute;
+        bottom: -6px;
+        left: 0;
+        transform: translateY(100%) scale(0.97);
+        transform-origin: top left;
+        z-index: 30;
+        background: #fff;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(232, 231, 226, 0.8);
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1),
+                    transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .kpi-tooltip[data-visible] {
+        opacity: 1;
+        transform: translateY(100%) scale(1);
+        pointer-events: auto;
+      }
+
+      /* KPI card entrance — staggered slide-up */
+      .kpi-card {
+        animation: fadeSlideIn 350ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .kpi-card:nth-child(1) { animation-delay: 60ms; }
+      .kpi-card:nth-child(2) { animation-delay: 120ms; }
+      .kpi-card:nth-child(3) { animation-delay: 180ms; }
+
+      /* Operator badges (−, =) between KPI cards */
+      @keyframes operatorFadeIn {
+        from { opacity: 0; transform: translateY(-50%) scale(0.8); }
+        to   { opacity: 1; transform: translateY(-50%) scale(1); }
+      }
+      .kpi-operator {
+        animation: operatorFadeIn 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .kpi-operator.op-1 { animation-delay: 160ms; }
+      .kpi-operator.op-2 { animation-delay: 240ms; }
+
+      /* Pill badges pop in */
+      @keyframes pillPop {
+        from { opacity: 0; transform: scale(0.85); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .pill-enter {
+        animation: pillPop 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 500ms;
+      }
+
+      /* Cost split bar reveal — fills left to right */
+      @keyframes barReveal {
+        from { clip-path: inset(0 100% 0 0); }
+        to   { clip-path: inset(0 0 0 0); }
+      }
+      .cost-split-bar {
+        animation: barReveal 600ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 350ms;
+      }
+
+      /* Cost split inner items fade in (strip itself is always visible) */
+      @keyframes contentFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      .cost-split-item {
+        animation: contentFadeIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 350ms;
+      }
+
+      /* Margin % in header — scale in */
+      @keyframes marginReveal {
+        from { opacity: 0; transform: scale(0.92); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .margin-hero {
+        transform-origin: right center;
+        animation: marginReveal 400ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 350ms;
+      }
+
+      /* Header entrance */
+      .header-enter {
+        animation: fadeSlideIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        animation-delay: 0ms;
+      }
+
+      /* Reduced motion */
+      /* Scope notes expand/collapse — grid trick for height: auto animation */
+      .scope-notes-wrap {
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transition: grid-template-rows 220ms cubic-bezier(0.23, 1, 0.32, 1),
+                    opacity 180ms ease-out;
+      }
+      .scope-notes-wrap[data-open] {
+        grid-template-rows: 1fr;
+        opacity: 1;
+      }
+      .scope-notes-wrap > div {
+        overflow: hidden;
+      }
+
+      /* Notes row border fades with content */
+      .notes-row {
+        border-bottom-color: transparent !important;
+        transition: border-bottom-color 200ms ease-out;
+      }
+      .notes-row[data-open] {
+        border-bottom-color: #e8e7e2 !important;
+      }
+
+      /* Selection bar — children stagger in from left */
+      @keyframes slideInFromLeft {
+        from {
+          opacity: 0;
+          transform: translateX(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .selection-bar > * {
+        animation: slideInFromLeft 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .selection-bar > *:nth-child(1) { animation-delay: 0ms; }
+      .selection-bar > *:nth-child(2) { animation-delay: 25ms; }
+      .selection-bar > *:nth-child(3) { animation-delay: 50ms; }
+      .selection-bar > *:nth-child(4) { animation-delay: 75ms; }
+      .selection-bar > *:nth-child(5) { animation-delay: 100ms; }
+      .selection-bar > *:nth-child(6) { animation-delay: 125ms; }
+      .selection-bar > *:nth-child(7) { animation-delay: 150ms; }
+      .selection-bar > *:nth-child(8) { animation-delay: 150ms; }
+      .selection-bar > *:nth-child(9) { animation-delay: 150ms; }
+
+      /* Group header subtle entrance on first load */
+      .group-header {
+        animation: fadeSlideIn 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .page-enter,
+        .analytics-card,
+        .analytics-full,
+        .kpi-card,
+        .kpi-operator,
+        .pill-enter,
+        .cost-split-bar,
+        .cost-split-item,
+        .margin-hero,
+        .header-enter,
+        .selection-bar > *,
+        .group-header {
+          animation: none;
+          opacity: 1;
+          transform: none;
+          clip-path: none;
+        }
+        .kpi-operator {
+          transform: translateY(-50%);
+        }
+        .kpi-tooltip {
+          transition: none;
+          transform: translateY(100%);
+        }
+        .kpi-tooltip[data-visible] {
+          transform: translateY(100%);
+        }
+        .scope-notes-wrap {
+          transition: none;
+        }
+        .notes-row {
+          transition: none;
+        }
+        .view-more-btn:active { transform: none; }
+        .view-more-btn:hover .arrow { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.jsx"></script>
+    <script>
+      (function(){
+        var t;
+        document.body.addEventListener('scroll', function(){
+          document.body.classList.add('is-scrolling');
+          clearTimeout(t);
+          t = setTimeout(function(){ document.body.classList.remove('is-scrolling'); }, 800);
+        }, {passive:true});
+      })();
+    </script>
+  </body>
+</html>
