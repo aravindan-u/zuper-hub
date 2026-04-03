@@ -26,22 +26,22 @@ const TableCell = forwardRef(({ style, ...props }, ref) => (
 ));
 
 const ALL_PARTS = [
-  { id: "TO-001", name: "Tear-off — existing 2-layer roof", type: "SVC", group: "Tear-off & disposal", qty: 28, unit: "sq", unitCost: 45, unitPrice: 210, billable: true, notes: "Entire existing roof to be removed down to decking. Two layers confirmed during inspection.", thumb: "tearoff" },
-  { id: "TO-002", name: "Dumpster rental — 30 yd", type: "EQ", group: "Tear-off & disposal", qty: 2, unit: "ea", unitCost: 425, unitPrice: 1050, billable: true, notes: null, thumb: "dumpster" },
-  { id: "TO-003", name: "Dump fees & haul-away", type: "SVC", group: "Tear-off & disposal", qty: 1, unit: "lot", unitCost: 680, unitPrice: 1680, billable: true, notes: null, thumb: "truck" },
-  { id: "RF-101", name: "GAF Timberline HDZ — Charcoal", type: "MAT", group: "Roofing materials", qty: 31, unit: "sq", unitCost: 112, unitPrice: 385, billable: true, notes: "3 squares overage for waste/cuts.", thumb: "shingle" },
-  { id: "RF-102", name: "Synthetic underlayment — FeltBuster", type: "MAT", group: "Roofing materials", qty: 10, unit: "roll", unitCost: 64, unitPrice: 195, billable: true, notes: null, thumb: "roll" },
-  { id: "RF-103", name: "Ice & water shield — 36 in", type: "MAT", group: "Roofing materials", qty: 6, unit: "roll", unitCost: 95, unitPrice: 305, billable: true, notes: "Valleys, eaves, and around all penetrations.", thumb: "roll" },
-  { id: "RF-104", name: "Coil nails — 1¼ in galvanized", type: "MAT", group: "Roofing materials", qty: 4, unit: "box", unitCost: 42, unitPrice: 115, billable: true, notes: null, thumb: "nails" },
-  { id: "RF-105", name: "Starter strip shingles", type: "MAT", group: "Roofing materials", qty: 8, unit: "bdl", unitCost: 28, unitPrice: 88, billable: true, notes: null, thumb: "shingle" },
-  { id: "FL-201", name: "Drip edge — aluminum, white", type: "MAT", group: "Flashing & trim", qty: 24, unit: "pc", unitCost: 8.5, unitPrice: 30, billable: true, notes: null, thumb: "drip" },
-  { id: "FL-202", name: "Step flashing — 4×4 galv", type: "MAT", group: "Flashing & trim", qty: 50, unit: "pc", unitCost: 1.75, unitPrice: 7.5, billable: true, notes: null, thumb: "flash" },
-  { id: "FL-203", name: "Pipe boot — 2 in neoprene", type: "MAT", group: "Flashing & trim", qty: 3, unit: "ea", unitCost: 12, unitPrice: 52, billable: true, notes: null, thumb: "boot" },
-  { id: "FL-204", name: "Chimney flashing kit — lead/alum", type: "MAT", group: "Flashing & trim", qty: 1, unit: "kit", unitCost: 185, unitPrice: 775, billable: true, notes: "Two-piece counter-flashing. Cricket to be rebuilt.", thumb: "chimney" },
-  { id: "VN-301", name: "Ridge vent — shingle-over, 4 ft", type: "MAT", group: "Ventilation", qty: 10, unit: "pc", unitCost: 18, unitPrice: 65, billable: true, notes: null, thumb: "vent" },
-  { id: "VN-302", name: "Soffit vent — 8×16 aluminum", type: "MAT", group: "Ventilation", qty: 6, unit: "ea", unitCost: 14, unitPrice: 56, billable: true, notes: "Verify 1:150 NFA ratio.", thumb: "vent" },
-  { id: "MS-401", name: "Permit & final inspection", type: "SVC", group: "Misc & inspection", qty: 1, unit: "ea", unitCost: 350, unitPrice: 0, billable: false, notes: null, thumb: "permit" },
-  { id: "MS-402", name: "Tarps & exterior protection", type: "MAT", group: "Misc & inspection", qty: 1, unit: "lot", unitCost: 120, unitPrice: 0, billable: false, notes: "Home exterior and driveway protection during tear-off.", thumb: "tarp" },
+  { id: "TO-001", name: "Tear-off — existing 2-layer roof", type: "SVC", group: "Tear-off & disposal", qty: 28, unit: "sq", unitCost: 45, unitPrice: 210, billable: true, notes: "Entire existing roof to be removed down to decking. Two layers confirmed during inspection.", thumb: "tearoff", description: "Complete removal of existing 2-layer asphalt roof down to deck sheathing", sku: "SVC-TEAR-2L" },
+  { id: "TO-002", name: "Dumpster rental — 30 yd", type: "EQ", group: "Tear-off & disposal", qty: 2, unit: "ea", unitCost: 425, unitPrice: 1050, billable: true, notes: null, thumb: "dumpster", description: "30-yard roll-off dumpster for roofing debris", sku: "EQ-DUMP-30" },
+  { id: "TO-003", name: "Dump fees & haul-away", type: "SVC", group: "Tear-off & disposal", qty: 1, unit: "lot", unitCost: 680, unitPrice: 1680, billable: true, notes: null, thumb: "truck", description: "Disposal and transport fees for roofing waste", sku: "SVC-HAUL-01" },
+  { id: "RF-101", name: "GAF Timberline HDZ — Charcoal", type: "MAT", group: "Roofing materials", qty: 31, unit: "sq", unitCost: 112, unitPrice: 385, billable: true, notes: "3 squares overage for waste/cuts.", thumb: "shingle", pricelist: "Preferred Contractor Rates", financing: "6-month installment", description: "Architectural laminate shingle, Charcoal colorway, lifetime warranty", sku: "GAF-HDZ-CHAR" },
+  { id: "RF-102", name: "Synthetic underlayment — FeltBuster", type: "MAT", group: "Roofing materials", qty: 10, unit: "roll", unitCost: 64, unitPrice: 195, billable: true, notes: null, thumb: "roll", pricelist: "Preferred Contractor Rates", description: "High-traction synthetic roof underlayment, 10 sq per roll", sku: "UND-FB-10SQ" },
+  { id: "RF-103", name: "Ice & water shield — 36 in", type: "MAT", group: "Roofing materials", qty: 6, unit: "roll", unitCost: 95, unitPrice: 305, billable: true, notes: "Valleys, eaves, and around all penetrations.", thumb: "roll", pricelist: "Preferred Contractor Rates", description: "Self-adhering waterproofing membrane, 36\" wide", sku: "IWS-36-SA" },
+  { id: "RF-104", name: "Coil nails — 1¼ in galvanized", type: "MAT", group: "Roofing materials", qty: 4, unit: "box", unitCost: 42, unitPrice: 115, billable: true, notes: null, thumb: "nails", description: "Hot-dipped galvanized coil nails for pneumatic nailer", sku: "NL-COIL-125G" },
+  { id: "RF-105", name: "Starter strip shingles", type: "MAT", group: "Roofing materials", qty: 8, unit: "bdl", unitCost: 28, unitPrice: 88, billable: true, notes: null, thumb: "shingle", description: "Pre-cut starter strip for eave and rake edges", sku: "SH-START-01" },
+  { id: "FL-201", name: "Drip edge — aluminum, white", type: "MAT", group: "Flashing & trim", qty: 24, unit: "pc", unitCost: 8.5, unitPrice: 30, billable: true, notes: null, thumb: "drip", description: "Type D aluminum drip edge, white finish, 10 ft", sku: "FL-DRIP-WH" },
+  { id: "FL-202", name: "Step flashing — 4×4 galv", type: "MAT", group: "Flashing & trim", qty: 50, unit: "pc", unitCost: 1.75, unitPrice: 7.5, billable: true, notes: null, thumb: "flash", description: "Pre-bent galvanized step flashing, 4×4 in", sku: "FL-STEP-4G" },
+  { id: "FL-203", name: "Pipe boot — 2 in neoprene", type: "MAT", group: "Flashing & trim", qty: 3, unit: "ea", unitCost: 12, unitPrice: 52, billable: true, notes: null, thumb: "boot", financing: "6-month installment", description: "Neoprene pipe boot flashing for 2\" vent pipe", sku: "FL-BOOT-2N" },
+  { id: "FL-204", name: "Chimney flashing kit — lead/alum", type: "MAT", group: "Flashing & trim", qty: 1, unit: "kit", unitCost: 185, unitPrice: 775, billable: true, notes: "Two-piece counter-flashing. Cricket to be rebuilt.", thumb: "chimney", description: "Two-piece lead/aluminum chimney flashing kit with cricket", sku: "FL-CHIM-KIT" },
+  { id: "VN-301", name: "Ridge vent — shingle-over, 4 ft", type: "MAT", group: "Ventilation", qty: 10, unit: "pc", unitCost: 18, unitPrice: 65, billable: true, notes: null, thumb: "vent", description: "Low-profile shingle-over ridge vent, 4 ft section", sku: "VN-RIDGE-4" },
+  { id: "VN-302", name: "Soffit vent — 8×16 aluminum", type: "MAT", group: "Ventilation", qty: 6, unit: "ea", unitCost: 14, unitPrice: 56, billable: true, notes: "Verify 1:150 NFA ratio.", thumb: "vent", description: "Under-eave aluminum soffit vent, 8×16 in", sku: "VN-SOFF-816" },
+  { id: "MS-401", name: "Permit & final inspection", type: "SVC", group: "Misc & inspection", qty: 1, unit: "ea", unitCost: 350, unitPrice: 0, billable: false, notes: null, thumb: "permit", description: "Building permit and municipal final inspection fee", sku: null },
+  { id: "MS-402", name: "Tarps & exterior protection", type: "MAT", group: "Misc & inspection", qty: 1, unit: "lot", unitCost: 120, unitPrice: 0, billable: false, notes: "Home exterior and driveway protection during tear-off.", thumb: "tarp", description: "Protective tarps for landscaping, driveway, and siding", sku: null },
 ];
 const ALL_LABOR = [
   { id: "LAB-01", name: "Crew labor — tear-off (4 crew)", hours: 14, rate: 48, total: 2688 },
@@ -60,6 +60,92 @@ const ALL_COMMISSIONS = [
   { id: "COM-02", name: "Maria Chen — referral", role: "Referral partner", rate: 3, basis: "revenue", amount: 886.53 },
   { id: "COM-03", name: "Tom Bradley — project lead", role: "PM bonus", rate: 5, basis: "profit", amount: 669.63 },
 ];
+const CATALOG_ITEMS = [
+  // Tear-off & disposal
+  { catalogId: "C-TO-001", name: "Tear-off — single layer", type: "SVC", group: "Tear-off & disposal", defaultUnit: "sq", defaultUnitCost: 38, defaultUnitPrice: 175, thumb: "tearoff", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-TO-002", name: "Tear-off — 2-layer roof", type: "SVC", group: "Tear-off & disposal", defaultUnit: "sq", defaultUnitCost: 45, defaultUnitPrice: 210, thumb: "tearoff", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-TO-003", name: "Dumpster rental — 20 yd", type: "EQ", group: "Tear-off & disposal", defaultUnit: "ea", defaultUnitCost: 325, defaultUnitPrice: 800, thumb: "dumpster", location: "Vendor", availability: "On request" },
+  { catalogId: "C-TO-004", name: "Dumpster rental — 30 yd", type: "EQ", group: "Tear-off & disposal", defaultUnit: "ea", defaultUnitCost: 425, defaultUnitPrice: 1050, thumb: "dumpster", location: "Vendor", availability: "On request" },
+  { catalogId: "C-TO-005", name: "Dump fees & haul-away", type: "SVC", group: "Tear-off & disposal", defaultUnit: "lot", defaultUnitCost: 680, defaultUnitPrice: 1680, thumb: "truck", location: "Vendor", availability: "In stock" },
+  // Roofing materials
+  { catalogId: "C-RF-101", name: "GAF Timberline HDZ — Charcoal", type: "MAT", group: "Roofing materials", defaultUnit: "sq", defaultUnitCost: 112, defaultUnitPrice: 385, thumb: "shingle", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-RF-102", name: "Synthetic underlayment — FeltBuster", type: "MAT", group: "Roofing materials", defaultUnit: "roll", defaultUnitCost: 64, defaultUnitPrice: 195, thumb: "roll", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-RF-103", name: "Ice & water shield — 36 in", type: "MAT", group: "Roofing materials", defaultUnit: "roll", defaultUnitCost: 95, defaultUnitPrice: 305, thumb: "roll", location: "Warehouse", availability: "Low stock" },
+  { catalogId: "C-RF-104", name: "Coil nails — 1¼ in galvanized", type: "MAT", group: "Roofing materials", defaultUnit: "box", defaultUnitCost: 42, defaultUnitPrice: 115, thumb: "nails", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-RF-105", name: "Starter strip shingles", type: "MAT", group: "Roofing materials", defaultUnit: "bdl", defaultUnitCost: 28, defaultUnitPrice: 88, thumb: "shingle", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-RF-106", name: "Hip & ridge cap shingles", type: "MAT", group: "Roofing materials", defaultUnit: "bdl", defaultUnitCost: 34, defaultUnitPrice: 105, thumb: "shingle", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-RF-107", name: "Roofing cement — 10 oz tube", type: "MAT", group: "Roofing materials", defaultUnit: "ea", defaultUnitCost: 6, defaultUnitPrice: 18, thumb: "nails", location: "Job site", availability: "In stock" },
+  // Flashing & trim
+  { catalogId: "C-FL-201", name: "Drip edge — aluminum, white", type: "MAT", group: "Flashing & trim", defaultUnit: "pc", defaultUnitCost: 8.5, defaultUnitPrice: 30, thumb: "drip", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-FL-202", name: "Step flashing — 4×4 galv", type: "MAT", group: "Flashing & trim", defaultUnit: "pc", defaultUnitCost: 1.75, defaultUnitPrice: 7.5, thumb: "flash", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-FL-203", name: "Pipe boot — 2 in neoprene", type: "MAT", group: "Flashing & trim", defaultUnit: "ea", defaultUnitCost: 12, defaultUnitPrice: 52, thumb: "boot", location: "Warehouse", availability: "Low stock" },
+  { catalogId: "C-FL-204", name: "Chimney flashing kit — lead/alum", type: "MAT", group: "Flashing & trim", defaultUnit: "kit", defaultUnitCost: 185, defaultUnitPrice: 775, thumb: "chimney", location: "Vendor", availability: "On request" },
+  { catalogId: "C-FL-205", name: "Valley flashing — W-style", type: "MAT", group: "Flashing & trim", defaultUnit: "pc", defaultUnitCost: 14, defaultUnitPrice: 48, thumb: "flash", location: "Warehouse", availability: "In stock" },
+  // Ventilation
+  { catalogId: "C-VN-301", name: "Ridge vent — shingle-over, 4 ft", type: "MAT", group: "Ventilation", defaultUnit: "pc", defaultUnitCost: 18, defaultUnitPrice: 65, thumb: "vent", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-VN-302", name: "Soffit vent — 8×16 aluminum", type: "MAT", group: "Ventilation", defaultUnit: "ea", defaultUnitCost: 14, defaultUnitPrice: 56, thumb: "vent", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-VN-303", name: "Turbine vent — 12 in", type: "MAT", group: "Ventilation", defaultUnit: "ea", defaultUnitCost: 35, defaultUnitPrice: 120, thumb: "vent", location: "Job site", availability: "In stock" },
+  { catalogId: "C-VN-304", name: "Power attic fan — solar", type: "EQ", group: "Ventilation", defaultUnit: "ea", defaultUnitCost: 280, defaultUnitPrice: 650, thumb: "vent", location: "Vendor", availability: "On request" },
+  // Gutters & drainage
+  { catalogId: "C-GT-401", name: "Seamless gutter — 5 in aluminum", type: "MAT", group: "Gutters & drainage", defaultUnit: "ft", defaultUnitCost: 6, defaultUnitPrice: 18, thumb: "drip", location: "Vendor", availability: "In stock" },
+  { catalogId: "C-GT-402", name: "Downspout — 2×3 aluminum", type: "MAT", group: "Gutters & drainage", defaultUnit: "pc", defaultUnitCost: 12, defaultUnitPrice: 38, thumb: "drip", location: "Vendor", availability: "In stock" },
+  { catalogId: "C-GT-403", name: "Gutter guard — mesh, 4 ft", type: "MAT", group: "Gutters & drainage", defaultUnit: "pc", defaultUnitCost: 8, defaultUnitPrice: 24, thumb: "drip", location: "Warehouse", availability: "Low stock" },
+  // Misc & inspection
+  { catalogId: "C-MS-501", name: "Permit & final inspection", type: "SVC", group: "Misc & inspection", defaultUnit: "ea", defaultUnitCost: 350, defaultUnitPrice: 0, thumb: "permit", location: "Job site", availability: "In stock" },
+  { catalogId: "C-MS-502", name: "Tarps & exterior protection", type: "MAT", group: "Misc & inspection", defaultUnit: "lot", defaultUnitCost: 120, defaultUnitPrice: 0, thumb: "tarp", location: "Warehouse", availability: "In stock" },
+  { catalogId: "C-MS-503", name: "Drone roof inspection", type: "SVC", group: "Misc & inspection", defaultUnit: "ea", defaultUnitCost: 150, defaultUnitPrice: 395, thumb: "permit", location: "Job site", availability: "On request" },
+];
+const CATALOG_GROUPS = [...new Set(CATALOG_ITEMS.map(i => i.group))];
+const UNIT_LABELS = { sq: "sqft", ea: "item", roll: "roll", box: "box", bdl: "bundle", pc: "piece", kit: "kit", lot: "lot", ft: "ft" };
+
+const CATALOG_BUNDLES = [
+  {
+    bundleId: "BDL-001",
+    name: "Complete tear-off & replace",
+    description: "Full roof tear-off with disposal, new shingles, underlayment, and fasteners",
+    thumb: "tearoff",
+    defaultUnitPrice: 8200,
+    defaultUnitCost: 3480,
+    items: [
+      { catalogId: "C-TO-002", name: "Tear-off — 2-layer roof", type: "SVC", qty: 28, unit: "sq", unitCost: 45, unitPrice: 210 },
+      { catalogId: "C-TO-004", name: "Dumpster rental — 30 yd", type: "EQ", qty: 1, unit: "ea", unitCost: 425, unitPrice: 1050 },
+      { catalogId: "C-TO-005", name: "Dump fees & haul-away", type: "SVC", qty: 1, unit: "lot", unitCost: 680, unitPrice: 1680 },
+      { catalogId: "C-RF-101", name: "GAF Timberline HDZ — Charcoal", type: "MAT", qty: 31, unit: "sq", unitCost: 112, unitPrice: 385 },
+      { catalogId: "C-RF-102", name: "Synthetic underlayment — FeltBuster", type: "MAT", qty: 10, unit: "roll", unitCost: 64, unitPrice: 195 },
+      { catalogId: "C-RF-104", name: "Coil nails — 1¼ in galvanized", type: "MAT", qty: 4, unit: "box", unitCost: 42, unitPrice: 115 },
+    ],
+  },
+  {
+    bundleId: "BDL-002",
+    name: "Flashing & ventilation package",
+    description: "Drip edge, step flashing, pipe boots, ridge vent, and soffit vents for a standard residential roof",
+    thumb: "flash",
+    defaultUnitPrice: 2840,
+    defaultUnitCost: 695,
+    items: [
+      { catalogId: "C-FL-201", name: "Drip edge — aluminum, white", type: "MAT", qty: 24, unit: "pc", unitCost: 8.5, unitPrice: 30 },
+      { catalogId: "C-FL-202", name: "Step flashing — 4×4 galv", type: "MAT", qty: 50, unit: "pc", unitCost: 1.75, unitPrice: 7.5 },
+      { catalogId: "C-FL-203", name: "Pipe boot — 2 in neoprene", type: "MAT", qty: 3, unit: "ea", unitCost: 12, unitPrice: 52 },
+      { catalogId: "C-VN-301", name: "Ridge vent — shingle-over, 4 ft", type: "MAT", qty: 10, unit: "pc", unitCost: 18, unitPrice: 65 },
+      { catalogId: "C-VN-302", name: "Soffit vent — 8×16 aluminum", type: "MAT", qty: 6, unit: "ea", unitCost: 14, unitPrice: 56 },
+    ],
+  },
+  {
+    bundleId: "BDL-003",
+    name: "Gutters & downspout kit",
+    description: "Complete seamless gutter system with downspouts, hangers, and end caps for standard residential home",
+    thumb: "drip",
+    defaultUnitPrice: 3150,
+    defaultUnitCost: 1240,
+    items: [
+      { catalogId: "C-GT-001", name: "Seamless gutter — 5 in aluminum", type: "MAT", qty: 140, unit: "ft", unitCost: 4.5, unitPrice: 12 },
+      { catalogId: "C-GT-002", name: "Downspout — 2×3 in aluminum", type: "MAT", qty: 6, unit: "ea", unitCost: 28, unitPrice: 75 },
+      { catalogId: "C-GT-003", name: "Gutter hanger — hidden", type: "MAT", qty: 45, unit: "ea", unitCost: 3.5, unitPrice: 9 },
+      { catalogId: "C-GT-004", name: "End cap & outlet", type: "MAT", qty: 8, unit: "ea", unitCost: 6, unitPrice: 18 },
+    ],
+  },
+];
+
 const QUOTES = [
   { id: "Q-1041", name: "Original estimate", date: "Sep 14, 2024", status: "Approved", revenue: 28500, cogs: 16000, profit: 12500, materials: 8800, labor: 7200 },
   { id: "Q-1041-R1", name: "Rev 1 — chimney reflash", date: "Sep 22, 2024", status: "Approved", revenue: 30200, cogs: 16800, profit: 13400, materials: 9400, labor: 7400 },
@@ -69,6 +155,14 @@ const PRICELISTS = [
   { id: "default", name: "Standard pricing" },
   { id: "preferred", name: "Preferred customer" },
   { id: "insurance", name: "Insurance rate schedule" },
+];
+const FINANCING_OPTIONS = [
+  { id: "none", name: "No financing" },
+  { id: "net30", name: "Net 30" },
+  { id: "net60", name: "Net 60" },
+  { id: "installment3", name: "3-month installment" },
+  { id: "installment6", name: "6-month installment" },
+  { id: "installment12", name: "12-month installment" },
 ];
 
 const $ = (v) => "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
