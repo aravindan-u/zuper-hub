@@ -1585,19 +1585,42 @@ function CatalogDialog({ open, onClose, onConfirm, existingIds }) {
   );
 }
 
-
 export default function App() {
   const [demoEmpty, setDemoEmpty] = useState(false);
   const [tab, setTab] = useState(0);
   const [sort, setSort] = useState({ col: null, dir: "desc" });
-  const [open, setOpen] = useState(null);
+  const [expandedMainBundles, setExpandedMainBundles] = useState(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [dragItem, setDragItem] = useState(null); // { type: "item"|"bundle"|"group", id: string }
+  const [dragOverItem, setDragOverItem] = useState(null);
+  const [draggingGroup, setDraggingGroup] = useState(null); // group name when dragging a section header
+  const [tableSearch, setTableSearch] = useState("");
+  const [rowMenu, setRowMenu] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const [editItem, setEditItem] = useState(null); // draft copy for editing
   const [selected, setSelected] = useState(new Set());
   const [activeQuotes, setActiveQuotes] = useState(new Set([QUOTES[0].id]));
   const [pricelistId, setPricelistId] = useState("default");
   const [showMenu, setShowMenu] = useState(false);
+  const [showColConfig, setShowColConfig] = useState(false);
+  const [columns, setColumns] = useState([
+    { id: "qty", label: "Qty", visible: true, locked: false },
+    { id: "unitCost", label: "Unit cost", visible: true, locked: false },
+    { id: "unitPrice", label: "Unit price", visible: false, locked: false },
+    { id: "revenue", label: "Revenue", visible: true, locked: false },
+    { id: "profit", label: "Profit", visible: true, locked: false },
+    { id: "margin", label: "Margin", visible: true, locked: false },
+    { id: "markup", label: "Markup", visible: false, locked: false },
+  ]);
+  const [dragCol, setDragCol] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const visibleCols = columns.filter(c => c.visible);
   const [showPricelist, setShowPricelist] = useState(false);
   const [showPricelistMenu, setShowPricelistMenu] = useState(false);
   const [pricelistSearch, setPricelistSearch] = useState("");
+  const [financingId, setFinancingId] = useState("none");
+  const [showFinancingMenu, setShowFinancingMenu] = useState(false);
+  const [financingSearch, setFinancingSearch] = useState("");
   const [dialog, setDialog] = useState(null);
   const [requestItems, setRequestItems] = useState([]);
   const [hoveredMetric, setHoveredMetric] = useState(null);
@@ -1607,6 +1630,10 @@ export default function App() {
   const [isSticky, setIsSticky] = useState(false);
   const [showQuotesPanel, setShowQuotesPanel] = useState(false);
   const [breakdownTab, setBreakdownTab] = useState("revenue");
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [parts, setParts] = useState(ALL_PARTS);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef(null);
   const tooltipTimeout = useRef(null);
 
   const showTooltip = (key) => {
@@ -1634,7 +1661,7 @@ export default function App() {
   };
   const blMargin = bl.revenue > 0 ? bl.profit / bl.revenue : 0;
 
-  const PARTS = demoEmpty ? [] : ALL_PARTS;
+  const PARTS = demoEmpty ? [] : parts;
   const LABOR = demoEmpty ? [] : ALL_LABOR;
   const hasData = PARTS.length > 0 || LABOR.some((l) => l.total > 0);
 
@@ -1665,6 +1692,20 @@ export default function App() {
     return () => scrollEl.removeEventListener("scroll", onScroll);
   }, [hasData]);
 
+  useEffect(() => {
+    if (!rowMenu) return;
+    const close = () => setRowMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [rowMenu]);
+
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const handleClick = (e) => { if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showAddMenu]);
+
   const billable = PARTS.filter((p) => p.billable);
   const partsRev = billable.reduce((s, p) => s + p.unitPrice * p.qty, 0);
   const partsCost = PARTS.reduce((s, p) => s + p.unitCost * p.qty, 0);
@@ -1676,20 +1717,90 @@ export default function App() {
   const nbCost = PARTS.filter((p) => !p.billable).reduce((s, p) => s + p.unitCost * p.qty, 0);
   const maxProfit = useMemo(() => Math.max(...(billable.length ? billable.map((p) => (p.unitPrice - p.unitCost) * p.qty) : [1]), 1), [billable]);
 
+  const sections = useMemo(() => PARTS.filter(p => p.isSection), [PARTS]);
+  const tsLower = tableSearch.toLowerCase();
   const groups = useMemo(() => {
     const map = new Map();
-    const items = sort.col ? [...PARTS].sort((a, b) => {
+    const base = PARTS.filter(p => !p.isSection);
+    const searched = tsLower ? base.filter(p => p.name.toLowerCase().includes(tsLower) || p.id.toLowerCase().includes(tsLower) || (p.sku && p.sku.toLowerCase().includes(tsLower)) || (p.description && p.description.toLowerCase().includes(tsLower)) || p.group.toLowerCase().includes(tsLower)) : base;
+    const items = sort.col ? [...searched].sort((a, b) => {
       const g = (p) => sort.col === "cost" ? p.unitCost * p.qty : sort.col === "revenue" ? p.unitPrice * p.qty : sort.col === "profit" ? (p.unitPrice - p.unitCost) * p.qty : sort.col === "margin" ? (p.unitPrice > 0 ? (p.unitPrice - p.unitCost) / p.unitPrice : -1) : 0;
       return sort.dir === "asc" ? g(a) - g(b) : g(b) - g(a);
-    }) : PARTS;
+    }) : searched;
     items.forEach((p) => { if (!map.has(p.group)) map.set(p.group, []); map.get(p.group).push(p); });
     return map;
-  }, [PARTS, sort]);
+  }, [PARTS, sort, tsLower]);
 
   const doSort = (c) => setSort((s) => s.col === c ? { col: c, dir: s.dir === "asc" ? "desc" : "asc" } : { col: c, dir: "desc" });
   const S = (c) => sort.col === c ? (sort.dir === "asc" ? " ↑" : " ↓") : "";
+  const toggleMainBundle = (key) => setExpandedMainBundles(prev => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+  const toggleGroup = (gName) => setCollapsedGroups(prev => { const next = new Set(prev); if (next.has(gName)) next.delete(gName); else next.add(gName); return next; });
+  const handleDragStart = (id) => setDragItem(id);
+  const handleDragOver = (e, id) => { e.preventDefault(); setDragOverItem(id); };
+  const handleDrop = (targetId) => {
+    if (!dragItem || dragItem === targetId) { setDragItem(null); setDragOverItem(null); setDraggingGroup(null); return; }
+    setParts(prev => {
+      const arr = [...prev];
+      const fromIdx = arr.findIndex(p => p.id === dragItem);
+      const toIdx = arr.findIndex(p => p.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      return arr;
+    });
+    setDragItem(null);
+    setDragOverItem(null);
+    setDraggingGroup(null);
+  };
+  const handleGroupDragStart = (gName) => {
+    setDraggingGroup(gName);
+    setDragItem("group:" + gName);
+    setCollapsedGroups(prev => { const next = new Set(prev); next.add(gName); return next; });
+  };
+  const handleGroupDragEnd = (gName) => {
+    setDragItem(null);
+    setDragOverItem(null);
+    setDraggingGroup(null);
+    setCollapsedGroups(prev => { const next = new Set(prev); next.delete(gName); return next; });
+  };
+  const handleBundleDragStart = (bundleId) => setDragItem("bundle:" + bundleId);
+  const handleBundleDragEnd = () => { setDragItem(null); setDragOverItem(null); };
+
+  // Map bundles to groups based on item overlap
+  const groupBundles = useMemo(() => {
+    const map = new Map();
+    const assigned = new Set();
+    // Score each bundle per group by overlap count, assign to best-match group only
+    const groupKeys = [...groups.keys()];
+    const scores = [];
+    groupKeys.forEach(gName => {
+      const gItemNames = new Set((groups.get(gName) || []).map(p => p.name));
+      CATALOG_BUNDLES.forEach(b => {
+        const overlap = b.items.filter(bi => gItemNames.has(bi.name)).length;
+        if (overlap > 0) scores.push({ gName, bundle: b, overlap });
+      });
+    });
+    scores.sort((a, b) => b.overlap - a.overlap);
+    scores.forEach(({ gName, bundle }) => {
+      if (assigned.has(bundle.bundleId)) return;
+      assigned.add(bundle.bundleId);
+      if (!map.has(gName)) map.set(gName, []);
+      map.get(gName).push(bundle);
+    });
+    // Ensure all groups have an entry
+    groupKeys.forEach(gName => { if (!map.has(gName)) map.set(gName, []); });
+    return map;
+  }, [groups]);
+
+  // All selectable IDs = part IDs + visible bundle IDs
+  const allSelectableIds = useMemo(() => {
+    const ids = PARTS.filter(p => !p.isSection).map(p => p.id);
+    [...groupBundles.values()].forEach(bundles => bundles.forEach(b => { if (!ids.includes(b.bundleId)) ids.push(b.bundleId); }));
+    return ids;
+  }, [PARTS, groupBundles]);
+
   const tabs = [
-    { name: "Parts & services", n: PARTS.length, add: "Add part / service" },
+    { name: "Parts & services", n: PARTS.filter(p => !p.isSection).length, add: "Add", hasAddMenu: true },
     { name: "Labor", n: LABOR.length, add: "Add labor" },
     { name: "Expenses", n: ALL_EXPENSES.length, add: "Add expense" },
     { name: "Commissions", n: ALL_COMMISSIONS.length, add: "Add commission" },
@@ -1808,7 +1919,7 @@ export default function App() {
                     {["revenue", "cogs"].map((t) => {
                       const on = breakdownTab === t;
                       return (
-                        <button key={t} onClick={() => setBreakdownTab(t)} style={{ fontSize: 11, fontWeight: 600, padding: "4px 14px", borderRadius: 99, border: on ? "1px solid #1a1a18" : "1px solid #e0dfda", cursor: "pointer", background: on ? "#1a1a18" : "#fff", color: on ? "#fff" : "#6b6a65", transition: "all 150ms ease" }}>
+                        <button key={t} onClick={() => setBreakdownTab(t)} style={{ fontSize: 11, fontWeight: 600, padding: "4px 14px", borderRadius: 99, border: on ? "1px solid #1a1a18" : "1px solid #e0dfda", cursor: "pointer", background: on ? "#1a1a18" : "#fff", color: on ? "#fff" : "#6b6a65", transition: "background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out" }}>
                           {t === "revenue" ? "Revenue" : "COGS"}
                         </button>
                       );
@@ -1984,15 +2095,49 @@ export default function App() {
         })}
         <span style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: -1 }}>
-          <button style={{ fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46" }}>+ {tabs[tab].add}</button>
+          {tabs[tab].hasAddMenu ? (
+            <div style={{ position: "relative" }} ref={addMenuRef}>
+              <button onClick={() => setShowAddMenu(v => !v)} style={{ fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "1px solid #e0dfda", background: showAddMenu ? "#f5f4f0" : "#fff", cursor: "pointer", color: "#4a4a46", display: "flex", alignItems: "center", gap: 4 }}>
+                + {tabs[tab].add}
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={showAddMenu ? "M3 7.5L6 4.5L9 7.5" : "M3 4.5L6 7.5L9 4.5"} /></svg>
+              </button>
+              {showAddMenu && (
+                <div className="dropdown-enter" style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", width: 200, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 20, padding: "4px 0" }}>
+                  <button onClick={() => { setShowAddMenu(false); setCatalogOpen(true); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6M12 9v6"/></svg>
+                    Line item
+                  </button>
+                  <button onClick={() => {
+                    setShowAddMenu(false);
+                    const sectionId = "SEC-" + Date.now();
+                    setParts(prev => [...prev, { id: sectionId, name: "", type: "SECTION", group: "", qty: 0, unit: "", unitCost: 0, unitPrice: 0, billable: false, isSection: true, _editing: true }]);
+                  }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                    Section
+                  </button>
+                  <div style={{ height: 1, background: "#f0eeea", margin: "4px 0" }} />
+                  <button className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", background: "none", cursor: "not-allowed", fontSize: 13, color: "#b0afa9", textAlign: "left" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d0cfca" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                    Group
+                  </button>
+                  <button className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", border: "none", background: "none", cursor: "not-allowed", fontSize: 13, color: "#b0afa9", textAlign: "left" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d0cfca" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Custom item
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button onClick={() => setCatalogOpen(true)} style={{ fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 6, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46" }}>+ {tabs[tab].add}</button>
+          )}
           <div style={{ position: "relative" }}>
-            <button onClick={() => { setShowMenu(!showMenu); setShowPricelistMenu(false); setPricelistSearch(""); }} style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: "1px solid #e0dfda", background: showMenu ? "#f5f4f0" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a65", fontSize: 18, lineHeight: 1 }}>⋯</button>
+            <button onClick={() => { setShowMenu(!showMenu); setShowPricelistMenu(false); setShowFinancingMenu(false); setShowColConfig(false); setPricelistSearch(""); setFinancingSearch(""); }} style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: "1px solid #e0dfda", background: showMenu ? "#f5f4f0" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6a65", fontSize: 18, lineHeight: 1 }}>⋯</button>
             {showMenu && (
-              <div className="dropdown-menu" style={{ position: "absolute", right: 0, top: 34, width: 220, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 20 }}>
-                <button onClick={() => { setShowPricelistMenu(v => !v); setPricelistSearch(""); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: showPricelistMenu ? "#f5f4f0" : "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="3"/><path d="M17.5 18.5L16 20"/></svg>
-                  Change pricelist
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#8c8b86" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "auto" }}><path d="M3 1l3 3-3 3"/></svg>
+              <div className="dropdown-menu" style={{ position: "absolute", right: 0, top: 34, width: 260, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 20, padding: "4px 0" }}>
+                <button onClick={() => { setShowPricelistMenu(v => !v); setShowFinancingMenu(false); setShowColConfig(false); setPricelistSearch(""); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: showPricelistMenu ? "#f5f4f0" : "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left", overflow: "hidden" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="3"/><path d="M17.5 18.5L16 20"/></svg>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, fontWeight: pricelistId !== "default" ? 600 : 400 }}>{pricelistId !== "default" ? PRICELISTS.find(p => p.id === pricelistId)?.name : "Pricelist"}</span>
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#8c8b86" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M3 1l3 3-3 3"/></svg>
                 </button>
                 {showPricelistMenu && (
                   <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 0, width: 220, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 21 }}>
@@ -2006,10 +2151,10 @@ export default function App() {
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
-                    {PRICELISTS.filter(pl => pl.name.toLowerCase().includes(pricelistSearch.toLowerCase())).map((pl) => (
+                    {PRICELISTS.filter(pl => pl.id !== "default" && pl.name.toLowerCase().includes(pricelistSearch.toLowerCase())).map((pl) => (
                       <button
                         key={pl.id}
-                        onClick={() => { setPricelistId(pl.id); setShowPricelist(true); }}
+                        onClick={() => { if (pl.id === pricelistId) { setPricelistId("default"); setShowPricelist(false); } else { setPricelistId(pl.id); setShowPricelist(true); } setShowPricelistMenu(false); }}
                         className="dropdown-item"
                         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: pl.id === pricelistId ? "#1a1a18" : "#4a4a46", fontWeight: pl.id === pricelistId ? 600 : 400, textAlign: "left" }}
                       >
@@ -2017,15 +2162,82 @@ export default function App() {
                         {pl.id === pricelistId && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#166534" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </button>
                     ))}
-                    {PRICELISTS.filter(pl => pl.name.toLowerCase().includes(pricelistSearch.toLowerCase())).length === 0 && (
+                    {PRICELISTS.filter(pl => pl.id !== "default" && pl.name.toLowerCase().includes(pricelistSearch.toLowerCase())).length === 0 && (
                       <div style={{ padding: "12px 14px", fontSize: 12, color: "#a3a29c", textAlign: "center" }}>No results</div>
                     )}
                   </div>
                 )}
-                <button className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export line items
+                <button onClick={() => { setShowFinancingMenu(v => !v); setShowPricelistMenu(false); setShowColConfig(false); setFinancingSearch(""); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: showFinancingMenu ? "#f5f4f0" : "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left", overflow: "hidden" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, fontWeight: financingId !== "none" ? 600 : 400 }}>{financingId !== "none" ? FINANCING_OPTIONS.find(f => f.id === financingId)?.name : "Financing"}</span>
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#8c8b86" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M3 1l3 3-3 3"/></svg>
                 </button>
+                {showFinancingMenu && (
+                  <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 40, width: 220, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 21 }}>
+                    <div style={{ padding: "8px 8px 4px" }}>
+                      <input
+                        autoFocus
+                        value={financingSearch}
+                        onChange={(e) => setFinancingSearch(e.target.value)}
+                        placeholder="Search financing…"
+                        style={{ width: "100%", fontSize: 12, padding: "6px 10px", borderRadius: 5, border: "1px solid #e0dfda", outline: "none", background: "#fafaf8", color: "#1a1a18" }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    {FINANCING_OPTIONS.filter(f => f.id !== "none" && f.name.toLowerCase().includes(financingSearch.toLowerCase())).map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => { if (f.id === financingId) { setFinancingId("none"); } else { setFinancingId(f.id); } setShowFinancingMenu(false); }}
+                        className="dropdown-item"
+                        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: f.id === financingId ? "#1a1a18" : "#4a4a46", fontWeight: f.id === financingId ? 600 : 400, textAlign: "left" }}
+                      >
+                        {f.name}
+                        {f.id === financingId && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#166534" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </button>
+                    ))}
+                    {FINANCING_OPTIONS.filter(f => f.id !== "none" && f.name.toLowerCase().includes(financingSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "12px 14px", fontSize: 12, color: "#a3a29c", textAlign: "center" }}>No results</div>
+                    )}
+                  </div>
+                )}
+                {showColConfig && (
+                  <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 80, width: 220, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 21, padding: "4px 0" }}>
+                    {columns.map((col, ci) => (
+                      <div
+                        key={col.id}
+                        draggable
+                        onDragStart={() => setDragCol(ci)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverCol(ci); }}
+                        onDrop={() => {
+                          if (dragCol === null || dragCol === ci) { setDragCol(null); setDragOverCol(null); return; }
+                          setColumns(prev => { const arr = [...prev]; const [moved] = arr.splice(dragCol, 1); arr.splice(ci, 0, moved); return arr; });
+                          setDragCol(null); setDragOverCol(null);
+                        }}
+                        onDragEnd={() => { setDragCol(null); setDragOverCol(null); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+                          opacity: dragCol === ci ? 0.4 : 1,
+                          borderTop: dragOverCol === ci && dragCol !== ci ? "2px solid #3b82f6" : "1px solid transparent",
+                        }}
+                      >
+                        <span style={{ cursor: "grab", color: "#d0cfca", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                          <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor"><circle cx="1.5" cy="1.5" r="1"/><circle cx="4.5" cy="1.5" r="1"/><circle cx="1.5" cy="5" r="1"/><circle cx="4.5" cy="5" r="1"/><circle cx="1.5" cy="8.5" r="1"/><circle cx="4.5" cy="8.5" r="1"/></svg>
+                        </span>
+                        <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: col.visible ? "#1a1a18" : "#b0afa9" }}>{col.label}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setColumns(prev => prev.map((c, i) => i === ci ? { ...c, visible: !c.visible } : c)); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 1, display: "flex", alignItems: "center", color: col.visible ? "#166534" : "#d0cfca", flexShrink: 0 }}
+                        >
+                          {col.visible ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M20.188 10.934c.388.472.582.707.582 1.066s-.194.594-.582 1.066C18.768 14.79 15.636 18 12 18c-3.636 0-6.768-3.21-8.188-4.934C3.424 12.594 3.23 12.36 3.23 12s.194-.594.582-1.066C5.232 9.21 8.364 6 12 6c3.636 0 6.768 3.21 8.188 4.934z"/></svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div style={{ height: 1, background: "#e8e7e2", margin: "4px 0" }} />
                 <button onClick={() => { setDialog("po"); setRequestItems([]); setShowMenu(false); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
@@ -2034,6 +2246,12 @@ export default function App() {
                 <button onClick={() => { setDialog("mr"); setRequestItems([]); setShowMenu(false); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                   Create material request
+                </button>
+                <div style={{ height: 1, background: "#e8e7e2", margin: "4px 0" }} />
+                <button onClick={() => { setShowColConfig(v => !v); setShowPricelistMenu(false); setShowFinancingMenu(false); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: showColConfig ? "#f5f4f0" : "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 3v18M3 12h18M9 3h6M9 21h6M3 9v6M21 9v6"/></svg>
+                  <span style={{ flex: 1 }}>Customize columns</span>
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#8c8b86" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M3 1l3 3-3 3"/></svg>
                 </button>
               </div>
             )}
@@ -2044,6 +2262,23 @@ export default function App() {
       {/* Content */}
       {tab === 0 && PARTS.length > 0 ? (
         <div style={{ borderLeft: "1px solid #e8e7e2", borderRight: "1px solid #e8e7e2", borderBottom: "1px solid #e8e7e2", borderRadius: "0 0 10px 10px" }}>
+          {/* Table search */}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0eeea", background: "#fff" }}>
+            <div style={{ position: "relative" }}>
+              <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0afa9" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7.5"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input
+                value={tableSearch}
+                onChange={e => setTableSearch(e.target.value)}
+                placeholder="Search items..."
+                style={{ width: "100%", height: 32, fontSize: 12, padding: "0 30px 0 32px", borderRadius: 7, border: "1px solid #e8e7e2", background: "#fafaf8", outline: "none", color: "#1a1a18", transition: "border-color 120ms ease, box-shadow 120ms ease" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#c5c4bf"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,0,0,0.03)"; e.currentTarget.style.background = "#fff"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "#fafaf8"; }}
+              />
+              {tableSearch && (
+                <button onClick={() => setTableSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "#e8e7e2", border: "none", cursor: "pointer", color: "#6b6a65", width: 16, height: 16, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9 }}>✕</button>
+              )}
+            </div>
+          </div>
           {showPricelist && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderBottom: "1px solid #f0eeea", background: "#fefdfb" }}>
               <span style={{ fontSize: 11, color: "#8c8b86" }}>Pricelist</span>
@@ -2058,23 +2293,19 @@ export default function App() {
 
           <Table style={{ tableLayout: "fixed", width: "100%" }}>
             <colgroup>
-              <col style={{ width: 30 }} />
+              <col style={{ width: 36 }} />
               <col />
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "12%" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: "10%" }} />
+              {visibleCols.map(c => <col key={c.id} style={{ width: c.id === "qty" ? "7%" : c.id === "margin" || c.id === "markup" ? "10%" : c.id === "unitCost" || c.id === "unitPrice" ? "11%" : c.id === "revenue" ? "12%" : "14%" }} />)}
               <col style={{ width: "4%" }} />
             </colgroup>
             <TableHeader>
-              <TableRow ref={theadRef} style={{ position: "sticky", top: isSticky ? 44 : 0, zIndex: 10, background: selected.size > 0 ? "#eef2ff" : "#fff", transition: "background 0.15s, top 250ms cubic-bezier(0.23, 1, 0.32, 1)", boxShadow: "0 1px 0 #e8e7e2" }}>
-                <TableHead style={{ padding: "6px 12px", textAlign: "center" }}>
-                  <input type="checkbox" checked={selected.size === PARTS.length && PARTS.length > 0} ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < PARTS.length; }} onChange={(e) => setSelected(e.target.checked ? new Set(PARTS.map((p) => p.id)) : new Set())} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1d4ed8", margin: 0 }} />
-                </TableHead>
+              <TableRow ref={theadRef} style={{ position: "sticky", top: isSticky ? 44 : 0, zIndex: 10, background: selected.size > 0 ? "#eef2ff" : "#fff", transition: "background 0.15s, top 250ms cubic-bezier(0.23, 1, 0.32, 1)", boxShadow: "0 1px 0 #e8e7e2, 0 1px 3px rgba(0,0,0,0.04)" }}>
                 {selected.size > 0 ? (
-                  <TableHead colSpan={7} style={{ padding: "5px 14px", textAlign: "left" }}>
+                  <TableHead colSpan={visibleCols.length + 3} style={{ padding: "5px 14px 5px 6px", textAlign: "left" }}>
                     <div className="selection-bar" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", padding: "0 4px 0 12px" }}>
+                        <input type="checkbox" checked={selected.size === allSelectableIds.length && allSelectableIds.length > 0} ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < allSelectableIds.length; }} onChange={(e) => setSelected(e.target.checked ? new Set(allSelectableIds) : new Set())} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1d4ed8", margin: 0 }} />
+                      </div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8", whiteSpace: "nowrap" }}>{selected.size} selected</span>
                       <span style={{ width: 1, height: 16, background: "#c7d7f0" }} />
                       {["Mark non-billable", "Change pricing", "Remove"].map((a) => (
@@ -2087,98 +2318,217 @@ export default function App() {
                       <button onClick={() => setSelected(new Set())} style={{ fontSize: 10, fontWeight: 600, color: "#6b6a65", background: "none", border: "none", cursor: "pointer" }}>Clear</button>
                     </div>
                   </TableHead>
-                ) : (
-                  [
+                ) : [
+                  <TableHead key="cb" style={{ padding: "6px 4px 6px 18px", textAlign: "center" }}>
+                    <input type="checkbox" checked={selected.size === allSelectableIds.length && allSelectableIds.length > 0} ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < allSelectableIds.length; }} onChange={(e) => setSelected(e.target.checked ? new Set(allSelectableIds) : new Set())} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1d4ed8", margin: 0 }} />
+                  </TableHead>,
+                  ...[
                     { label: "Item", align: "left", col: null },
-                    { label: "Qty", align: "right", col: null },
-                    { label: "Unit cost", align: "right", col: "cost" },
-                    { label: "Revenue", align: "right", col: "revenue" },
-                    { label: "Profit", align: "right", col: "profit" },
-                    { label: "Margin", align: "right", col: "margin" },
+                    ...visibleCols.map(c => ({ label: c.label, align: "right", col: c.id === "qty" || c.id === "unitPrice" ? null : c.id === "unitCost" ? "cost" : c.id })),
                     { label: "", align: "center", col: null },
                   ].map((h, i) => (
                     <TableHead key={i} onClick={() => h.col && doSort(h.col)} style={{ padding: "9px 14px", textAlign: h.align, cursor: h.col ? "pointer" : "default", userSelect: "none", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                       {h.label}{h.col ? S(h.col) : ""}
                     </TableHead>
                   ))
-                )}
+                ]}
               </TableRow>
             </TableHeader>
             <TableBody>
               {[...groups.entries()].map(([gName, items], gi) => {
                 const gCost = items.reduce((s, p) => s + p.unitCost * p.qty, 0);
                 const gRev = items.filter(p => p.billable).reduce((s, p) => s + p.unitPrice * p.qty, 0);
+                const gBundles = groupBundles.get(gName) || [];
                 return [
-                  <TableRow key={"g-" + gi} hoverBg={false} style={{ position: "sticky", top: isSticky ? 80 : 36, zIndex: 5, boxShadow: "0 1px 0 #e8e7e2" }}>
-                    <TableCell colSpan={8} className="group-header" style={{ padding: "8px 14px 6px", background: "#fafaf8", animationDelay: `${gi * 40}ms` }}>
+                  <TableRow key={"g-" + gi} hoverBg={false} draggable={draggingGroup === gName} onDragOver={(e) => { e.preventDefault(); setDragOverItem("group:" + gName); }} onDrop={() => handleDrop("group:" + gName)} onDragEnd={() => handleGroupDragEnd(gName)} style={{ position: "sticky", top: isSticky ? 80 : 36, zIndex: 5, cursor: "pointer", opacity: draggingGroup === gName ? 0.4 : 1, borderTop: dragOverItem === "group:" + gName && dragItem !== "group:" + gName ? "2px solid #3b82f6" : "1px solid #e8e7e2", boxShadow: "0 1px 0 #e8e7e2" }} onClick={() => toggleGroup(gName)}>
+                    <TableCell className="group-header" style={{ padding: "0 4px 0 6px", verticalAlign: "middle", background: "#fafaf8", animationDelay: `${gi * 40}ms` }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <span onMouseDown={(e) => { e.stopPropagation(); handleGroupDragStart(gName); e.currentTarget.closest("tr").draggable = true; }} style={{ cursor: "grab", color: "#d0cfca", display: "flex", alignItems: "center", padding: "2px 0" }}>
+                          <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+                        </span>
+                        <input type="checkbox" checked={items.every(p => selected.has(p.id)) && gBundles.every(b => selected.has(b.bundleId))} onChange={(e) => { const n = new Set(selected); if (e.target.checked) { items.forEach(p => n.add(p.id)); gBundles.forEach(b => n.add(b.bundleId)); } else { items.forEach(p => n.delete(p.id)); gBundles.forEach(b => n.delete(b.bundleId)); } setSelected(n); }} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1a1a18", margin: 0 }} />
+                      </div>
+                    </TableCell>
+                    <TableCell colSpan={visibleCols.length + 2} style={{ padding: "8px 14px 6px 14px", background: "#fafaf8" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "#4a4a46" }}>{gName}</span>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "#b0afa9" }}>{items.length} items</span>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#b0afa9" strokeWidth="1.5" strokeLinecap="round" style={{ transform: collapsedGroups.has(gName) ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 150ms ease", flexShrink: 0 }}><path d="M2 3.5l3 3 3-3"/></svg>
                         </div>
-                        <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#8c8b86", ...tn }}>
+                        <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#8c8b86", ...tn, whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "#b0afa9" }}>{items.length} items</span>
                           <span>Cost {$(gCost)}</span>
                           {gRev > 0 && <span>Rev {$(gRev)}</span>}
                         </div>
                       </div>
                     </TableCell>
                   </TableRow>,
-                  ...items.map((p) => {
+                  /* Bundles for this group — each with its own expand/collapse */
+                  ...(!collapsedGroups.has(gName) ? gBundles : []).map((bundle) => {
+                    const bKey = bundle.bundleId + "-" + gName;
+                    const bMg = bundle.defaultUnitPrice > 0 ? (bundle.defaultUnitPrice - bundle.defaultUnitCost) / bundle.defaultUnitPrice : 0;
+                    const bExpanded = expandedMainBundles.has(bKey);
+                    return (
+                      <Fragment key={"bdl-" + bKey}>
+                        <TableRow draggable onDragStart={() => handleBundleDragStart(bundle.bundleId)} onDragOver={(e) => { e.preventDefault(); setDragOverItem("bundle:" + bundle.bundleId); }} onDrop={() => handleDrop("bundle:" + bundle.bundleId)} onDragEnd={handleBundleDragEnd} style={{ background: "#fefdfb", cursor: "pointer", opacity: dragItem === "bundle:" + bundle.bundleId ? 0.4 : 1, borderTop: dragOverItem === "bundle:" + bundle.bundleId && dragItem !== "bundle:" + bundle.bundleId ? "2px solid #3b82f6" : undefined }} onClick={() => toggleMainBundle(bKey)}>
+                          <TableCell style={{ padding: "0 4px 0 6px", textAlign: "center", verticalAlign: "middle" }} onClick={(e) => e.stopPropagation()}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ cursor: "grab", color: "#d0cfca", display: "flex", alignItems: "center", padding: "2px 0" }} onMouseDown={e => e.currentTarget.closest("tr").draggable = true}>
+                                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+                              </span>
+                              <input type="checkbox" checked={selected.has(bundle.bundleId)} onChange={(e) => { const n = new Set(selected); e.target.checked ? n.add(bundle.bundleId) : n.delete(bundle.bundleId); setSelected(n); }} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1a1a18", margin: 0 }} />
+                            </div>
+                          </TableCell>
+                          <TableCell style={{ padding: "12px 14px", borderBottom: bExpanded ? "none" : undefined }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div style={{ width: 30, height: 30, borderRadius: 6, background: "linear-gradient(135deg, #e8eef4 0%, #dbeafe 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+                              </div>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div onClick={(e) => { e.stopPropagation(); setViewItem({ id: bundle.bundleId, name: bundle.name, type: "BUNDLE", group: gName, qty: 1, unit: "ea", unitCost: bundle.defaultUnitCost, unitPrice: bundle.defaultUnitPrice, billable: true, notes: null, thumb: "bundle", description: bundle.items.length + " items included", sku: null }); }} onMouseEnter={e => { e.currentTarget.style.color = "#2563eb"; e.currentTarget.style.textDecoration = "underline"; }} onMouseLeave={e => { e.currentTarget.style.color = "#1a1a18"; e.currentTarget.style.textDecoration = "none"; }} style={{ fontSize: 13, fontWeight: 600, color: "#1a1a18", cursor: "pointer", transition: "color 120ms ease" }}>{bundle.name}</div>
+                                <div style={{ fontSize: 11, color: "#a3a29c", marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                                  <span>{bundle.items.length} items included</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "rgba(59,130,246,0.08)", color: "#3b82f6" }}>BUNDLE</span>
+                                </div>
+                              </div>
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#b0afa9" strokeWidth="1.5" strokeLinecap="round" style={{ transform: bExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms ease", flexShrink: 0 }}><path d="M2 3.5l3 3 3-3"/></svg>
+                            </div>
+                          </TableCell>
+                          {visibleCols.map(c => {
+                            const bPr = bundle.defaultUnitPrice - bundle.defaultUnitCost;
+                            const bMkup = bundle.defaultUnitCost > 0 ? (bundle.defaultUnitPrice / bundle.defaultUnitCost - 1) * 100 : 0;
+                            const bb = bExpanded ? "none" : undefined;
+                            if (c.id === "qty") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#6b6a65", borderBottom: bb }}>1</TableCell>;
+                            if (c.id === "unitCost") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18", borderBottom: bb }}>{$(bundle.defaultUnitCost)}</TableCell>;
+                            if (c.id === "unitPrice") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18", borderBottom: bb }}>{$(bundle.defaultUnitPrice)}</TableCell>;
+                            if (c.id === "revenue") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18", borderBottom: bb }}>{$(bundle.defaultUnitPrice)}</TableCell>;
+                            if (c.id === "profit") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", borderBottom: bb }}><span style={{ fontSize: 13, fontWeight: 700, ...tn, color: "#166534" }}>{$(bPr)}</span></TableCell>;
+                            if (c.id === "margin") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", borderBottom: bb }}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 7px", borderRadius: 5, ...tn, background: bMg >= 0.4 ? "#dcfce7" : bMg >= 0.15 ? "#fef9c3" : "#fee2e2", color: bMg >= 0.4 ? "#166534" : bMg >= 0.15 ? "#854d0e" : "#991b1b" }}>{pct(bMg)}</span></TableCell>;
+                            if (c.id === "markup") return <TableCell key={c.id} style={{ padding: "10px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18", borderBottom: bb }}>{bMkup.toFixed(0)}%</TableCell>;
+                            return null;
+                          })}
+                          <TableCell style={{ padding: "12px 8px", textAlign: "center", borderBottom: bExpanded ? "none" : undefined }} />
+                        </TableRow>
+                        {bExpanded && bundle.items.map((bi, idx) => (
+                          <tr key={bi.catalogId + "-mbl"} style={{ background: "#fafaf8" }}>
+                            <td style={{ padding: 0, borderBottom: idx === bundle.items.length - 1 ? "1px solid #eae9e4" : "none" }} />
+                            <td style={{ padding: "6px 14px 6px 58px", borderBottom: idx === bundle.items.length - 1 ? "1px solid #eae9e4" : "none" }}>
+                              <span style={{ fontSize: 12, color: "#6b6a65" }}>{bi.name}</span>
+                            </td>
+                            {visibleCols.map(c => {
+                              const bb = idx === bundle.items.length - 1 ? "1px solid #eae9e4" : "none";
+                              const biR = bi.unitPrice * bi.qty;
+                              const biPr = biR - bi.unitCost * bi.qty;
+                              if (c.id === "qty") return <td key={c.id} style={{ padding: "6px 14px", borderBottom: bb, textAlign: "right", fontSize: 12, color: "#8c8b86", ...tn }}>{bi.qty} {bi.unit}</td>;
+                              if (c.id === "unitCost") return <td key={c.id} style={{ padding: "6px 14px", borderBottom: bb, textAlign: "right", fontSize: 12, color: "#8c8b86", ...tn }}>${bi.unitCost}</td>;
+                              if (c.id === "unitPrice") return <td key={c.id} style={{ padding: "6px 14px", borderBottom: bb, textAlign: "right", fontSize: 12, color: "#8c8b86", ...tn }}>${bi.unitPrice}</td>;
+                              if (c.id === "revenue") return <td key={c.id} style={{ padding: "6px 14px", borderBottom: bb, textAlign: "right", fontSize: 12, color: "#8c8b86", ...tn }}>${bi.unitPrice * bi.qty}</td>;
+                              return <td key={c.id} style={{ padding: "6px 14px", borderBottom: bb }} />;
+                            })}
+                            <td style={{ borderBottom: idx === bundle.items.length - 1 ? "1px solid #eae9e4" : "none" }} />
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  }),
+                  /* Items — hidden when group collapsed */
+                  ...(!collapsedGroups.has(gName) ? items : []).map((p) => {
                     const r = p.unitPrice * p.qty;
                     const pr = r - p.unitCost * p.qty;
                     const mg = r > 0 ? pr / r : 0;
                     const nb = !p.billable;
-                    const ex = open === p.id;
-                    return [
-                      <TableRow key={p.id} style={{ cursor: p.notes ? "pointer" : "default", background: selected.has(p.id) ? "rgba(239,246,255,0.4)" : undefined }}>
-                        <TableCell style={{ padding: "0 12px", textAlign: "center", verticalAlign: "middle" }} onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" checked={selected.has(p.id)} onChange={(e) => { const n = new Set(selected); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelected(n); }} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1a1a18", margin: 0 }} />
+                    const menuOpen = rowMenu === p.id;
+                    return (
+                      <TableRow key={p.id} draggable onDragStart={() => handleDragStart(p.id)} onDragOver={(e) => handleDragOver(e, p.id)} onDrop={() => handleDrop(p.id)} onDragEnd={() => { setDragItem(null); setDragOverItem(null); }} style={{ opacity: dragItem === p.id ? 0.4 : 1, borderTop: dragOverItem === p.id && dragItem !== p.id ? "2px solid #3b82f6" : undefined }}>
+                        <TableCell style={{ padding: "0 4px 0 6px", textAlign: "center", verticalAlign: "middle" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ cursor: "grab", color: "#d0cfca", display: "flex", alignItems: "center", padding: "2px 0" }} onMouseDown={e => e.currentTarget.closest("tr").draggable = true}>
+                              <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+                            </span>
+                            <input type="checkbox" checked={selected.has(p.id)} onChange={(e) => { const n = new Set(selected); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelected(n); }} onClick={(e) => e.stopPropagation()} style={{ width: 13, height: 13, cursor: "pointer", accentColor: "#1a1a18", margin: 0 }} />
+                          </div>
                         </TableCell>
-                        <TableCell style={{ padding: "12px 14px" }} onClick={() => p.notes && setOpen(ex ? null : p.id)}>
+                        <TableCell style={{ padding: "12px 14px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <Thumb type={p.thumb} />
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                              <div onClick={(e) => { e.stopPropagation(); setViewItem(p); }} onMouseEnter={e => { e.currentTarget.style.color = "#2563eb"; e.currentTarget.style.textDecoration = "underline"; }} onMouseLeave={e => { e.currentTarget.style.color = ""; e.currentTarget.style.textDecoration = "none"; }} style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", transition: "color 120ms ease" }}>{p.name}</div>
+                              {p.description && <div style={{ fontSize: 11, color: "#b0afa9", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 320 }}>{p.description}</div>}
                               <div style={{ fontSize: 11, color: "#a3a29c", marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
                                 <span style={tn}>{p.id}</span>
-                                <span style={{ color: "#d0cfca" }}>·</span>
-                                <span>{p.type}</span>
+                                {p.sku && <><span style={{ color: "#d0cfca" }}>·</span><span style={{ ...tn, fontSize: 10, color: "#b0afa9" }}>{p.sku}</span></>}
                                 {nb && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "#fef3c7", color: "#92400e" }}>NON-BILLABLE</span>}
                               </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#6b6a65" }}>{p.qty} <span style={{ fontSize: 11, color: "#b0afa9" }}>{p.unit}</span></TableCell>
-                        <TableCell style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{$(p.unitCost)}</TableCell>
-                        <TableCell style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{nb ? "—" : $(r)}</TableCell>
-                        <TableCell style={{ padding: "12px 14px", textAlign: "right" }}>
-                          {nb ? <span style={{ color: "#a3a29c" }}>—</span> : <span style={{ fontSize: 13, fontWeight: 700, ...tn, color: pr > 0 ? "#166534" : pr < 0 ? "#991b1b" : "#a3a29c" }}>{$(pr)}</span>}
-                        </TableCell>
-                        <TableCell style={{ padding: "12px 14px", textAlign: "right" }}>
-                          {nb ? <span style={{ color: "#a3a29c" }}>—</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 7px", borderRadius: 5, ...tn, background: mg >= 0.4 ? "#dcfce7" : mg >= 0.15 ? "#fef9c3" : "#fee2e2", color: mg >= 0.4 ? "#166534" : mg >= 0.15 ? "#854d0e" : "#991b1b" }}>{pct(mg)}</span>}
-                        </TableCell>
-                        <TableCell style={{ padding: "12px 8px", textAlign: "center" }}><span style={{ color: "#c5c4bf", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>⋯</span></TableCell>
-                      </TableRow>,
-                      p.notes && (
-                        <tr key={p.id + "-n"} className="notes-row" data-open={ex || undefined}>
-                          <td colSpan={8} style={{ padding: 0, verticalAlign: "top" }}>
-                            <div className="scope-notes-wrap" data-open={ex || undefined}>
-                              <div>
-                                <div style={{ padding: "0 14px 12px 60px" }}>
-                                  <div style={{ fontSize: 12, lineHeight: 1.6, color: "#6b6a65", background: "#fafaf8", border: "1px solid #f0eeea", borderRadius: 6, padding: "10px 14px", borderLeft: "3px solid #d4d3ce" }}>
-                                    <span style={{ fontWeight: 700, color: "#8c8b86", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 3 }}>Scope notes</span>
-                                    {p.notes}
-                                  </div>
-                                </div>
-                              </div>
+                        {visibleCols.map(c => {
+                          const mkup = p.unitCost > 0 ? (p.unitPrice / p.unitCost - 1) * 100 : 0;
+                          if (c.id === "qty") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#6b6a65" }}>{p.qty} <span style={{ fontSize: 11, color: "#b0afa9" }}>{p.unit}</span></TableCell>;
+                          if (c.id === "unitCost") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{$(p.unitCost)}</TableCell>;
+                          if (c.id === "unitPrice") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{$(p.unitPrice)}</TableCell>;
+                          if (c.id === "revenue") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{nb ? "—" : $(r)}</TableCell>;
+                          if (c.id === "profit") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right" }}>{nb ? <span style={{ color: "#a3a29c" }}>—</span> : <span style={{ fontSize: 13, fontWeight: 700, ...tn, color: pr > 0 ? "#166534" : pr < 0 ? "#991b1b" : "#a3a29c" }}>{$(pr)}</span>}</TableCell>;
+                          if (c.id === "margin") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right" }}>{nb ? <span style={{ color: "#a3a29c" }}>—</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 7px", borderRadius: 5, ...tn, background: mg >= 0.4 ? "#dcfce7" : mg >= 0.15 ? "#fef9c3" : "#fee2e2", color: mg >= 0.4 ? "#166534" : mg >= 0.15 ? "#854d0e" : "#991b1b" }}>{pct(mg)}</span>}</TableCell>;
+                          if (c.id === "markup") return <TableCell key={c.id} style={{ padding: "12px 14px", textAlign: "right", fontSize: 13, ...tn, color: "#1a1a18" }}>{nb ? "—" : (mkup.toFixed(0) + "%")}</TableCell>;
+                          return null;
+                        })}
+                        <TableCell style={{ padding: "12px 8px", textAlign: "center", position: "relative" }}>
+                          <span onClick={(e) => { e.stopPropagation(); setRowMenu(menuOpen ? null : p.id); }} style={{ color: "#c5c4bf", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>⋯</span>
+                          {menuOpen && (
+                            <div className="dropdown-enter" style={{ position: "absolute", right: 8, top: "100%", width: 200, background: "#fff", border: "1px solid #e0dfda", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", zIndex: 50 }}>
+                              <button onClick={(e) => { e.stopPropagation(); setViewItem(p); setRowMenu(null); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M20.188 10.934c.388.472.582.707.582 1.066s-.194.594-.582 1.066C18.768 14.79 15.636 18 12 18c-3.636 0-6.768-3.21-8.188-4.934C3.424 12.594 3.23 12.36 3.23 12s.194-.594.582-1.066C5.232 9.21 8.364 6 12 6c3.636 0 6.768 3.21 8.188 4.934z"/></svg>
+                                View item details
+                              </button>
+                              <div style={{ height: 1, background: "#f0eeea", margin: "2px 0" }} />
+                              <button onClick={(e) => { e.stopPropagation(); setEditItem({ ...p }); setViewItem(p); setRowMenu(null); }} className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#1a1a18", textAlign: "left" }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8c8b86" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Edit item
+                              </button>
+                              <button className="dropdown-item" style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#991b1b", textAlign: "left" }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#991b1b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                                Remove
+                              </button>
                             </div>
-                          </td>
-                        </tr>
-                      ),
-                    ];
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
                   }),
                 ];
               })}
+              {sections.map((sec) => (
+                <TableRow key={sec.id} hoverBg={false} draggable onDragStart={() => handleDragStart(sec.id)} onDragOver={(e) => handleDragOver(e, sec.id)} onDrop={() => handleDrop(sec.id)} onDragEnd={() => { setDragItem(null); setDragOverItem(null); }} style={{ background: "#fafaf8", opacity: dragItem === sec.id ? 0.4 : 1, borderTop: dragOverItem === sec.id && dragItem !== sec.id ? "2px solid #3b82f6" : undefined }}>
+                  <TableCell colSpan={visibleCols.length + 3} style={{ padding: 0, background: "#fafaf8" }}>
+                    <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 6 }}>
+                      {!sec._editing && (
+                        <span style={{ cursor: "grab", color: "#d0cfca", display: "flex", alignItems: "center", padding: "2px 0" }} onMouseDown={e => e.currentTarget.closest("tr").draggable = true}>
+                          <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/><circle cx="2" cy="7" r="1.2"/><circle cx="6" cy="7" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="6" cy="12" r="1.2"/></svg>
+                        </span>
+                      )}
+                      {sec._editing ? (
+                        <input
+                          autoFocus
+                          defaultValue={sec.name}
+                          placeholder="Section name"
+                          onBlur={e => { const val = e.target.value.trim(); if (!val) { setParts(prev => prev.filter(p => p.id !== sec.id)); } else { setParts(prev => prev.map(p => p.id === sec.id ? { ...p, name: val, _editing: false } : p)); } }}
+                          onKeyDown={e => { if (e.key === "Enter") { e.target.blur(); } if (e.key === "Escape") { setParts(prev => prev.filter(p => p.id !== sec.id)); } }}
+                          style={{ fontSize: 12, fontWeight: 700, color: "#4a4a46", background: "#fff", border: "1px solid #e8e7e2", borderRadius: 5, padding: "4px 10px", outline: "none", width: 240, transition: "border-color 120ms ease" }}
+                          onFocus={e => { e.currentTarget.style.borderColor = "#1a1a18"; }}
+                        />
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#4a4a46", flex: 1 }}>{sec.name}</span>
+                          <button onClick={() => setParts(prev => prev.filter(p => p.id !== sec.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", padding: 2 }}
+                            onMouseEnter={e => { e.currentTarget.style.color = "#991b1b"; }} onMouseLeave={e => { e.currentTarget.style.color = "#b0afa9"; }}
+                          ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
 
@@ -2197,7 +2547,7 @@ export default function App() {
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#1a1a18", marginBottom: 4 }}>No parts or services added</div>
           <div style={{ fontSize: 13, color: "#8c8b86", maxWidth: 340, margin: "0 auto 20px", lineHeight: 1.5 }}>Add line items to start tracking actuals against the estimated budget shown above.</div>
-          <button style={{ fontSize: 13, fontWeight: 700, padding: "9px 24px", borderRadius: 8, border: "none", background: "#1a1a18", color: "#fff", cursor: "pointer" }}>+ Add part / service</button>
+          <button onClick={() => setCatalogOpen(true)} style={{ fontSize: 13, fontWeight: 700, padding: "9px 24px", borderRadius: 8, border: "none", background: "#1a1a18", color: "#fff", cursor: "pointer" }}>+ Add part / service</button>
         </div>
       ) : tab === 1 && LABOR.length > 0 ? (
         <div style={{ borderLeft: "1px solid #e8e7e2", borderRight: "1px solid #e8e7e2", borderBottom: "1px solid #e8e7e2", borderRadius: "0 0 10px 10px" }}>
@@ -2297,7 +2647,7 @@ export default function App() {
           <div style={{ fontSize: 13, color: "#a3a29c", maxWidth: 280, margin: "0 auto 16px", lineHeight: 1.5 }}>
             {tab === 1 ? "Labor tracked against this job will appear here." : tab === 2 ? "Receipts and job-related expenses will show here." : "Commissions will appear once configured."}
           </div>
-          <button style={{ fontSize: 12, fontWeight: 600, padding: "6px 16px", borderRadius: 6, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46" }}>+ {tabs[tab].add}</button>
+          <button onClick={() => setCatalogOpen(true)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 16px", borderRadius: 6, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46" }}>+ {tabs[tab].add}</button>
         </div>
       )}
 
@@ -2343,6 +2693,226 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Catalog Dialog */}
+      <CatalogDialog
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        onConfirm={(newItems) => {
+          setParts(prev => [...prev, ...newItems]);
+          setCatalogOpen(false);
+        }}
+        existingIds={new Set(parts.map(p => p.name))}
+      />
+
+      {/* Item detail side sheet */}
+
+
+      {viewItem && (() => {
+        const catalogMatch = CATALOG_ITEMS.find(c => c.name === viewItem.name) || null;
+        const isEditing = editItem && editItem.id === viewItem.id;
+        const item = isEditing ? editItem : viewItem;
+        const r = item.unitPrice * item.qty;
+        const pr = r - item.unitCost * item.qty;
+        const mg = r > 0 ? pr / r : 0;
+        const nb = !item.billable;
+        const editInputStyle = { fontSize: 12, fontWeight: 600, color: "#1a1a18", padding: "4px 8px", border: "1px solid #e8e7e2", borderRadius: 5, background: "#fff", outline: "none", width: 140, textAlign: "right", fontVariantNumeric: "tabular-nums", transition: "border-color 120ms ease" };
+        const onFocus = (e) => { e.currentTarget.style.borderColor = "#1a1a18"; };
+        const onBlur = (e) => { e.currentTarget.style.borderColor = "#e8e7e2"; };
+        const setField = (field, value) => setEditItem(prev => ({ ...prev, [field]: value }));
+        const handleSave = () => {
+          setParts(prev => prev.map(p => p.id === editItem.id ? { ...p, name: editItem.name, unitCost: editItem.unitCost, unitPrice: editItem.unitPrice, qty: editItem.qty, billable: editItem.billable, notes: editItem.notes } : p));
+          setViewItem({ ...editItem });
+          setEditItem(null);
+        };
+        const handleCancel = () => setEditItem(null);
+        return (
+          <>
+            <div className="overlay-enter sidesheet-overlay" onClick={() => { setViewItem(null); setEditItem(null); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.2)", zIndex: 100 }} />
+            <div className="sidesheet-enter" style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 101, boxShadow: "-8px 0 32px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
+              {/* Header */}
+              <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #e8e7e2", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "#1a1a18", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{isEditing ? "Edit item" : "Item details"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    {!isEditing && (
+                      <button onClick={() => setEditItem({ ...viewItem })} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, flexShrink: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#f0eeea"; e.currentTarget.style.color = "#6b6a65"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+                      ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                    )}
+                    <button onClick={() => { setViewItem(null); setEditItem(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#f0eeea"; e.currentTarget.style.color = "#6b6a65"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+                    ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+                {/* Thumb + name */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <Thumb type={item.thumb} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {isEditing ? (
+                      <input value={editItem.name} onChange={e => setField("name", e.target.value)} onFocus={onFocus} onBlur={onBlur}
+                        style={{ fontSize: 15, fontWeight: 500, color: "#1a1a18", lineHeight: 1.25, padding: "4px 8px", border: "1px solid #e8e7e2", borderRadius: 5, background: "#fff", outline: "none", width: "100%", transition: "border-color 120ms ease" }} />
+                    ) : (
+                      <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a18", lineHeight: 1.25 }}>{item.name}</div>
+                    )}
+                    <div style={{ fontSize: 11, color: "#8c8b86", marginTop: 3 }}>
+                      <span>{item.group}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {item.description && (
+                  <div style={{ fontSize: 12, lineHeight: 1.5, color: "#8c8b86", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #f0eeea" }}>{item.description}</div>
+                )}
+
+                {/* Pricing details */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {/* Unit Cost */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                    <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Unit Cost</span>
+                    {isEditing ? (
+                      <input type="number" value={editItem.unitCost} onChange={e => setField("unitCost", parseFloat(e.target.value) || 0)} onFocus={onFocus} onBlur={onBlur} style={editInputStyle} />
+                    ) : (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18", ...tn }}>{$(item.unitCost)}</span>
+                    )}
+                  </div>
+                  {/* Unit Price */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                    <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Unit Price</span>
+                    {isEditing ? (
+                      <input type="number" value={editItem.unitPrice} onChange={e => setField("unitPrice", parseFloat(e.target.value) || 0)} onFocus={onFocus} onBlur={onBlur} style={editInputStyle} />
+                    ) : (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18", ...tn }}>{$(item.unitPrice)}</span>
+                    )}
+                  </div>
+                  {/* Quantity */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                    <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Quantity</span>
+                    {isEditing ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input type="number" value={editItem.qty} onChange={e => setField("qty", parseFloat(e.target.value) || 0)} onFocus={onFocus} onBlur={onBlur} style={{ ...editInputStyle, width: 70 }} />
+                        <span style={{ fontSize: 11, color: "#8c8b86" }}>{item.unit}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18", ...tn }}>{item.qty} {item.unit}</span>
+                    )}
+                  </div>
+                  {/* Computed fields — always read-only */}
+                  {[
+                    { label: "Total Revenue", value: nb ? "—" : $(r) },
+                    { label: "Profit", value: nb ? "—" : $(pr), color: !nb && (pr >= 0 ? "#166534" : "#991b1b") },
+                    ...(r > 0 ? [
+                      { label: "Margin", value: pct(mg), color: "#16a34a" },
+                      { label: "Markup", value: item.unitCost > 0 ? ((item.unitPrice / item.unitCost - 1) * 100).toFixed(0) + "%" : "—" },
+                    ] : []),
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                      <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>{label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: color || "#1a1a18", ...tn }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Job details */}
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                    {/* Item ID — always read-only */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                      <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Item ID</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{item.id}</span>
+                    </div>
+                    {/* SKU — read-only */}
+                    {item.sku && (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                        <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>SKU</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18", fontVariantNumeric: "tabular-nums" }}>{item.sku}</span>
+                      </div>
+                    )}
+                    {/* Group — read-only */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                      <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Group</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{item.group}</span>
+                    </div>
+                    {/* Type — read-only */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                      <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Type</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{item.type === "MAT" ? "Material" : item.type === "SVC" ? "Service" : "Equipment"}</span>
+                    </div>
+                    {/* Billable — toggle in edit mode */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                      <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Billable</span>
+                      {isEditing ? (
+                        <button onClick={() => setField("billable", !editItem.billable)} style={{
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, border: "none", cursor: "pointer",
+                          background: editItem.billable ? "#dcfce7" : "#fef3c7", color: editItem.billable ? "#166534" : "#92400e",
+                        }}>{editItem.billable ? "Yes" : "No"}</button>
+                      ) : (
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: item.billable ? "#dcfce7" : "#fef3c7", color: item.billable ? "#166534" : "#92400e" }}>{item.billable ? "Yes" : "No"}</span>
+                      )}
+                    </div>
+                    {/* Catalog fields — read-only */}
+                    {catalogMatch && [
+                      { label: "Catalog ID", value: catalogMatch.catalogId },
+                      { label: "Location", value: catalogMatch.location },
+                      { label: "Availability", value: catalogMatch.availability, badge: true, badgeBg: catalogMatch.availability === "In stock" ? "#dcfce7" : catalogMatch.availability === "Low stock" ? "#fef3c7" : "#f0eeea", badgeColor: catalogMatch.availability === "In stock" ? "#166534" : catalogMatch.availability === "Low stock" ? "#92400e" : "#6b6a65" },
+                    ].map(({ label, value, badge, badgeBg, badgeColor }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                        <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>{label}</span>
+                        {badge ? (
+                          <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: badgeBg, color: badgeColor }}>{value}</span>
+                        ) : (
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{value}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scope notes */}
+                {(item.notes || isEditing) && (
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500, marginBottom: 8 }}>Scope notes</div>
+                    {isEditing ? (
+                      <textarea value={editItem.notes || ""} onChange={e => setField("notes", e.target.value)} onFocus={onFocus} onBlur={onBlur} rows={3}
+                        style={{ fontSize: 12, lineHeight: 1.6, color: "#1a1a18", background: "#fff", border: "1px solid #e8e7e2", borderRadius: 8, padding: "10px 14px", width: "100%", outline: "none", resize: "vertical", fontFamily: "inherit", transition: "border-color 120ms ease", boxSizing: "border-box" }}
+                        placeholder="Add scope notes..." />
+                    ) : (
+                      <div style={{ fontSize: 12, lineHeight: 1.6, color: "#6b6a65", background: "#fafaf8", border: "1px solid #f0eeea", borderRadius: 8, padding: "12px 16px" }}>
+                        {item.notes}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer — edit mode actions */}
+              {isEditing && (
+                <div style={{ padding: "16px 20px", borderTop: "1px solid #e8e7e2", flexShrink: 0, display: "flex", gap: 8 }}>
+                  <button onClick={handleCancel} style={{
+                    flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                    border: "1px solid #e0dfda", background: "#fff", color: "#6b6a65", cursor: "pointer",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#fafaf8"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                  >Cancel</button>
+                  <button onClick={handleSave} style={{
+                    flex: 1, padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                    border: "none", background: "#1a1a18", color: "#fff", cursor: "pointer",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#2a2a28"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#1a1a18"}
+                  >Save changes</button>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
