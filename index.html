@@ -34,6 +34,10 @@
       button { cursor: pointer; }
       .dropdown-item:hover { background: #fafaf8 !important; }
       table { border-collapse: collapse; border-spacing: 0; }
+      /* Hide number input spinners for cleaner look */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      input[type="number"] { -moz-appearance: textfield; }
 
       /* View More button */
       .view-more-btn {
@@ -258,7 +262,152 @@
         animation: fadeSlideIn 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
       }
 
+      /* Catalog sidesheet */
+      @keyframes sidesheetIn {
+        from { transform: translateX(100%); }
+        to   { transform: translateX(0); }
+      }
+      @keyframes sidesheetOut {
+        from { transform: translateX(0); opacity: 1; }
+        to   { transform: translateX(100%); opacity: 0; }
+      }
+      @keyframes overlayIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @keyframes overlayOut {
+        from { opacity: 1; }
+        to   { opacity: 0; }
+      }
+      .sidesheet-enter {
+        animation: sidesheetIn 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .sidesheet-exit {
+        animation: sidesheetOut 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .overlay-enter {
+        animation: overlayIn 200ms ease both;
+      }
+      .overlay-exit {
+        animation: overlayOut 200ms ease both;
+      }
+      .catalog-card {
+        animation: fadeSlideIn 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .catalog-chip {
+        transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+      }
+      .catalog-chip:hover {
+        background: #fafaf8;
+        border-color: #d0cfca;
+      }
+
+      /* Picker row hover — CSS-driven for interruptibility */
+      .picker-row {
+        transition: background 80ms ease-out;
+      }
+      .picker-row:hover {
+        background: rgba(249,249,247,0.7);
+      }
+      .picker-row[data-active="true"] {
+        background: #f5f4f0;
+      }
+      .picker-item-link:hover {
+        color: #3b82f6 !important;
+        text-decoration: underline;
+      }
+
+      /* Detail pane enter — slides from right, not from bottom */
+      @keyframes detailPaneIn {
+        from {
+          opacity: 0;
+          transform: translateX(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .detail-pane-enter {
+        animation: detailPaneIn 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+
+      /* Pressable buttons — active feedback */
+      .btn-press {
+        transition: transform 100ms ease-out, background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+      }
+      .btn-press:active {
+        transform: scale(0.97);
+      }
+
+      /* Qty stepper button hover + active state */
+      .qty-btn {
+        transition: background 80ms ease-out, transform 80ms ease-out;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .qty-btn:hover {
+          background: #f5f4f0;
+        }
+      }
+      .qty-btn:active {
+        transform: scale(0.92);
+        background: #eae9e4 !important;
+      }
+
+      /* Dropdown menu enter — scale from origin, not slide */
+      @keyframes dropdownIn {
+        from {
+          opacity: 0;
+          transform: scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .dropdown-enter {
+        animation: dropdownIn 100ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        transform-origin: top right;
+      }
+
+      /* Bundle line-item picker — slides in from right like a sub-page */
+      @keyframes bundlePickerIn {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .bundle-picker-enter {
+        animation: bundlePickerIn 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .bundle-picker-enter .picker-row {
+        opacity: 0;
+        animation: fadeSlideIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      .bundle-picker-enter .picker-row:nth-child(1) { animation-delay: 40ms; }
+      .bundle-picker-enter .picker-row:nth-child(2) { animation-delay: 70ms; }
+      .bundle-picker-enter .picker-row:nth-child(3) { animation-delay: 100ms; }
+      .bundle-picker-enter .picker-row:nth-child(4) { animation-delay: 130ms; }
+      .bundle-picker-enter .picker-row:nth-child(5) { animation-delay: 160ms; }
+      .bundle-picker-enter .picker-row:nth-child(6) { animation-delay: 190ms; }
+      .bundle-picker-enter .picker-row:nth-child(7) { animation-delay: 220ms; }
+      .bundle-picker-enter .picker-row:nth-child(8) { animation-delay: 250ms; }
+
+      /* Side sheet overlay — subtle blur */
+      .sidesheet-overlay {
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+      }
+
       @media (prefers-reduced-motion: reduce) {
+        .detail-pane-enter,
+        .dropdown-enter,
+        .btn-press:active,
+        .qty-btn:active,
         .page-enter,
         .analytics-card,
         .analytics-full,
@@ -270,7 +419,14 @@
         .margin-hero,
         .header-enter,
         .selection-bar > *,
-        .group-header {
+        .group-header,
+        .catalog-card,
+        .sidesheet-enter,
+        .sidesheet-exit,
+        .overlay-enter,
+        .overlay-exit,
+        .bundle-picker-enter,
+        .bundle-picker-enter .picker-row {
           animation: none;
           opacity: 1;
           transform: none;

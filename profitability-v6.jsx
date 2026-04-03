@@ -171,14 +171,14 @@ const tn = { fontFeatureSettings: "'tnum'" };
 const hexToRgb = (hex) => { const h = hex.replace("#", ""); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)].join(","); };
 
 function Thumb({ type }) {
-  const s = 34;
+  const s = 30;
   const sh = { width: s, height: s, flexShrink: 0, borderRadius: 6, overflow: "hidden", display: "block" };
   const c = { tearoff: ["#fde8e8","#c53030"], dumpster: ["#e8eef4","#4a6785"], truck: ["#e8eef4","#4a6785"], shingle: ["#f0ebe4","#8b6914"], roll: ["#eef0e8","#5a7040"], nails: ["#eae8ee","#5a5070"], drip: ["#e8eef4","#4a6785"], flash: ["#e8eef4","#4a6785"], boot: ["#f0ebe4","#6b5a40"], chimney: ["#f0ebe4","#8b5e3c"], vent: ["#e8f0ee","#3a6b5a"], permit: ["#f5f0e8","#8b7a50"], tarp: ["#eef0e8","#5a7040"] }[type] || ["#f0eeea","#8c8b86"];
   return (
-    <svg style={sh} viewBox="0 0 34 34">
-      <rect width="34" height="34" fill={c[0]} rx="6" />
-      <circle cx="17" cy="17" r="7" fill={c[1]} opacity="0.2" />
-      <circle cx="17" cy="17" r="3" fill={c[1]} opacity="0.35" />
+    <svg style={sh} viewBox="0 0 30 30">
+      <rect width="30" height="30" fill={c[0]} rx="6" />
+      <circle cx="15" cy="15" r="6" fill={c[1]} opacity="0.2" />
+      <circle cx="15" cy="15" r="2.5" fill={c[1]} opacity="0.35" />
     </svg>
   );
 }
@@ -596,6 +596,995 @@ function AnalyticsView({ rev, cogs, profit, margin, partsCost, laborCost, nbCost
     </div>
   );
 }
+
+function CatalogDialog({ open, onClose, onConfirm, existingIds }) {
+  const [search, setSearch] = useState("");
+  const [activeFilters, setActiveFilters] = useState(new Set());
+  const [checked, setChecked] = useState(new Set());
+  const [checkedBundles, setCheckedBundles] = useState(new Set());
+  const [quantities, setQuantities] = useState(new Map());
+  const [bundleQty, setBundleQty] = useState(new Map());
+  const [expandedBundles, setExpandedBundles] = useState(new Set());
+  const [bundleItemOverrides, setBundleItemOverrides] = useState(new Map());
+  const [bundleDetailOverrides, setBundleDetailOverrides] = useState(new Map());
+  const [itemOverrides, setItemOverrides] = useState(new Map());
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
+  const [detailBundle, setDetailBundle] = useState(null);
+  const [addItemMenu, setAddItemMenu] = useState(null); // bundleId or null
+  const [catalogPage, setCatalogPage] = useState(0);
+  const CATALOG_PAGE_SIZE = 10;
+  const [lineItemPicker, setLineItemPicker] = useState(null); // bundleId or null
+  const [lineItemPickerSearch, setLineItemPickerSearch] = useState("");
+  const [lineItemPickerChecked, setLineItemPickerChecked] = useState(new Set());
+  const [addedBundleItems, setAddedBundleItems] = useState(new Map()); // bundleId → [item, ...]
+  const searchRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const addItemMenuRef = useRef(null);
+
+  const QUICK_FILTERS = [
+    { key: "product_type", label: "Product Type", values: ["Material", "Service", "Equipment"], match: (item, vals) => vals.some(v => v === "Material" && item.type === "MAT" || v === "Service" && item.type === "SVC" || v === "Equipment" && item.type === "EQ") },
+    { key: "trade_type", label: "Trade", values: ["Roofing", "Gutters", "General"], match: (item, vals) => vals.some(v => v === "Roofing" && (item.group.includes("Tear-off") || item.group.includes("Roofing") || item.group.includes("Flashing") || item.group.includes("Ventilation")) || v === "Gutters" && item.group.includes("Gutters") || v === "General" && item.group.includes("Misc")) },
+    { key: "category", label: "Category", values: CATALOG_GROUPS, match: (item, vals) => vals.includes(item.group) },
+    { key: "location", label: "Location", values: ["Warehouse", "Job site", "Vendor"], match: (item, vals) => vals.includes(item.location) },
+    { key: "availability", label: "Availability", values: ["In stock", "Low stock", "On request"], match: (item, vals) => vals.includes(item.availability) },
+  ];
+
+  useEffect(() => {
+    if (open) {
+      setSearch(""); setActiveFilters(new Set()); setChecked(new Set()); setCheckedBundles(new Set());
+      setQuantities(new Map()); setBundleQty(new Map()); setExpandedBundles(new Set()); setBundleItemOverrides(new Map()); setBundleDetailOverrides(new Map()); setItemOverrides(new Map()); setOpenDropdown(null); setDetailItem(null); setDetailBundle(null); setAddItemMenu(null); setLineItemPicker(null); setLineItemPickerSearch(""); setLineItemPickerChecked(new Set()); setAddedBundleItems(new Map());
+      setTimeout(() => searchRef.current?.focus(), 150);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleClick = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpenDropdown(null); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openDropdown]);
+
+  useEffect(() => {
+    if (!addItemMenu) return;
+    const handleClick = (e) => { if (addItemMenuRef.current && !addItemMenuRef.current.contains(e.target)) setAddItemMenu(null); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [addItemMenu]);
+
+  const toggleFilter = (filterVal) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filterVal)) next.delete(filterVal); else next.add(filterVal);
+      return next;
+    });
+  };
+
+  const toggleItem = (catalogId) => {
+    setChecked(prev => { const next = new Set(prev); if (next.has(catalogId)) next.delete(catalogId); else next.add(catalogId); return next; });
+  };
+
+  const toggleBundle = (bundleId) => {
+    setCheckedBundles(prev => { const next = new Set(prev); if (next.has(bundleId)) next.delete(bundleId); else next.add(bundleId); return next; });
+  };
+
+
+  const toggleAll = () => {
+    const allItemIds = filtered.map(i => i.catalogId);
+    const allBundleIds = filteredBundles.map(b => b.bundleId);
+    const totalCount = allItemIds.length + allBundleIds.length;
+    const currentCount = allItemIds.filter(id => checked.has(id)).length + allBundleIds.filter(id => checkedBundles.has(id)).length;
+    if (currentCount === totalCount && totalCount > 0) {
+      setChecked(new Set()); setCheckedBundles(new Set());
+    } else {
+      setChecked(new Set(allItemIds)); setCheckedBundles(new Set(allBundleIds));
+    }
+  };
+
+  const setQty = (catalogId, qty) => {
+    setQuantities(prev => { const next = new Map(prev); next.set(catalogId, Math.max(1, qty)); return next; });
+  };
+
+  const setBQty = (bundleId, qty) => {
+    setBundleQty(prev => { const next = new Map(prev); next.set(bundleId, Math.max(1, qty)); return next; });
+  };
+
+  const toggleBundleExpand = (bundleId) => {
+    setExpandedBundles(prev => { const next = new Set(prev); if (next.has(bundleId)) next.delete(bundleId); else next.add(bundleId); return next; });
+  };
+
+  const getBundleItemVal = (bundleId, catalogId, field, fallback) => {
+    const key = `${bundleId}:${catalogId}`;
+    const ov = bundleItemOverrides.get(key);
+    return ov && ov[field] !== undefined ? ov[field] : fallback;
+  };
+  const setBundleItemVal = (bundleId, catalogId, field, value) => {
+    const key = `${bundleId}:${catalogId}`;
+    setBundleItemOverrides(prev => {
+      const next = new Map(prev);
+      const existing = next.get(key) || {};
+      next.set(key, { ...existing, [field]: value });
+      return next;
+    });
+  };
+
+  const getBundleDetail = (bundleId, field, fallback) => {
+    const ov = bundleDetailOverrides.get(bundleId);
+    return ov && ov[field] !== undefined ? ov[field] : fallback;
+  };
+  const setBundleDetail = (bundleId, field, value) => {
+    setBundleDetailOverrides(prev => {
+      const next = new Map(prev);
+      const existing = next.get(bundleId) || {};
+      next.set(bundleId, { ...existing, [field]: value });
+      return next;
+    });
+  };
+
+  const getItemVal = (catalogId, field) => {
+    const ov = itemOverrides.get(catalogId);
+    return ov && ov[field] !== undefined ? ov[field] : undefined;
+  };
+  const setItemVal = (catalogId, field, value) => {
+    setItemOverrides(prev => {
+      const next = new Map(prev);
+      const existing = next.get(catalogId) || {};
+      next.set(catalogId, { ...existing, [field]: value });
+      return next;
+    });
+  };
+
+  // Filter logic — activeFilters holds values like "Material", "Roofing", "Tear-off & disposal"
+  const filtered = CATALOG_ITEMS.filter(item => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (!item.name.toLowerCase().includes(q) && !item.type.toLowerCase().includes(q)) return false;
+    }
+    if (activeFilters.size === 0) return true;
+    return QUICK_FILTERS.some(f => {
+      const activeVals = f.values.filter(v => activeFilters.has(v));
+      return activeVals.length > 0 && f.match(item, activeVals);
+    });
+  });
+  const totalPages = Math.ceil(filtered.length / CATALOG_PAGE_SIZE);
+  const paginatedItems = filtered.slice(catalogPage * CATALOG_PAGE_SIZE, (catalogPage + 1) * CATALOG_PAGE_SIZE);
+
+  const filteredBundles = CATALOG_BUNDLES.filter(b => {
+    if (search) {
+      const q = search.toLowerCase();
+      return b.name.toLowerCase().includes(q) || b.items.some(i => i.name.toLowerCase().includes(q));
+    }
+    return true;
+  });
+
+
+  // Totals
+  const selectedItems = CATALOG_ITEMS.filter(i => checked.has(i.catalogId));
+  const itemPrice = selectedItems.reduce((sum, i) => sum + (quantities.get(i.catalogId) || 1) * i.defaultUnitPrice, 0);
+  const itemCost = selectedItems.reduce((sum, i) => sum + (quantities.get(i.catalogId) || 1) * i.defaultUnitCost, 0);
+  const selectedBundles = CATALOG_BUNDLES.filter(b => checkedBundles.has(b.bundleId));
+  const bundlePrice = selectedBundles.reduce((sum, b) => sum + (bundleQty.get(b.bundleId) || 1) * b.defaultUnitPrice, 0);
+  const bundleCost = selectedBundles.reduce((sum, b) => sum + (bundleQty.get(b.bundleId) || 1) * b.defaultUnitCost, 0);
+  const totalPrice = itemPrice + bundlePrice;
+  const totalCost = itemCost + bundleCost;
+  const totalChecked = checked.size + checkedBundles.size;
+  const totalVisible = filtered.length + filteredBundles.length;
+
+  const handleConfirm = () => {
+    const items = [];
+    selectedItems.forEach(cat => {
+      items.push({
+        id: `NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: cat.name, type: cat.type, group: cat.group,
+        qty: quantities.get(cat.catalogId) || 1,
+        unit: cat.defaultUnit, unitCost: cat.defaultUnitCost, unitPrice: cat.defaultUnitPrice,
+        billable: true, notes: null, thumb: cat.thumb,
+      });
+    });
+    selectedBundles.forEach(b => {
+      const bq = bundleQty.get(b.bundleId) || 1;
+      b.items.forEach(bi => {
+        items.push({
+          id: `NEW-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: bi.name, type: bi.type, group: "Bundle: " + b.name,
+          qty: bi.qty * bq, unit: bi.unit, unitCost: bi.unitCost, unitPrice: bi.unitPrice,
+          billable: true, notes: `From bundle: ${b.name}`, thumb: CATALOG_ITEMS.find(c => c.catalogId === bi.catalogId)?.thumb || "shingle",
+        });
+      });
+    });
+    onConfirm(items);
+  };
+
+  if (!open) return null;
+
+  const allChecked = totalVisible > 0 && totalChecked === totalVisible;
+  const someChecked = totalChecked > 0 && !allChecked;
+  const thBase = { fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", padding: "7px 12px", borderBottom: "1px solid #e8e7e2", background: "#fff" };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 40 }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="overlay-enter" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)" }} />
+      <div style={{ position: "relative", width: (detailItem || detailBundle) ? 1080 : 780, maxHeight: "calc(100vh - 80px)", background: "#fff", borderRadius: 14, boxShadow: "0 24px 80px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.06)", display: "flex", flexDirection: "row", overflow: "hidden", animation: "fadeSlideIn 250ms cubic-bezier(0.23, 1, 0.32, 1) both", transition: "width 250ms cubic-bezier(0.23, 1, 0.32, 1)" }} onClick={e => e.stopPropagation()}>
+      {/* Left panel — list */}
+      <div style={{ width: 780, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {lineItemPicker ? (() => {
+          const bundleName = CATALOG_BUNDLES.find(b => b.bundleId === lineItemPicker)?.name || "Bundle";
+          const pickerItems = CATALOG_ITEMS.filter(i => {
+            if (!lineItemPickerSearch) return true;
+            return i.name.toLowerCase().includes(lineItemPickerSearch.toLowerCase());
+          });
+          const handleAddLineItems = () => {
+            const selected = CATALOG_ITEMS.filter(i => lineItemPickerChecked.has(i.catalogId));
+            if (selected.length === 0) { setLineItemPicker(null); return; }
+            setAddedBundleItems(prev => {
+              const next = new Map(prev);
+              const existing = next.get(lineItemPicker) || [];
+              const newItems = selected.map(i => ({ catalogId: i.catalogId, name: i.name, type: i.type, qty: 1, unit: i.defaultUnit, unitCost: i.defaultUnitCost, unitPrice: i.defaultUnitPrice, location: i.location }));
+              next.set(lineItemPicker, [...existing, ...newItems]);
+              return next;
+            });
+            setLineItemPicker(null);
+          };
+          return <div className="bundle-picker-enter" style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px 16px", flexShrink: 0, borderBottom: "1px solid #e8e7e2" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <button onClick={() => setLineItemPicker(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b6a65", display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, padding: "4px 8px", borderRadius: 6, transition: "background 120ms ease" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#f0eeea"} onMouseLeave={e => e.currentTarget.style.background = "none"}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  Back to Item Picker
+                </button>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a18", marginBottom: 12 }}>Add items to {bundleName}</div>
+              <div style={{ position: "relative" }}>
+                <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0afa9" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7.5"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input
+                  type="text"
+                  placeholder="Search catalog items..."
+                  value={lineItemPickerSearch}
+                  onChange={e => setLineItemPickerSearch(e.target.value)}
+                  autoFocus
+                  style={{ width: "100%", height: 36, padding: "0 10px 0 32px", fontSize: 13, border: "1px solid #e0dfda", borderRadius: 8, outline: "none", background: "#fafaf8", color: "#1a1a18", transition: "border-color 120ms ease" }}
+                  onFocus={e => { e.currentTarget.style.borderColor = "#c5c4bf"; e.currentTarget.style.background = "#fff"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "#e0dfda"; e.currentTarget.style.background = "#fafaf8"; }}
+                />
+              </div>
+            </div>
+            {/* Table */}
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#f5f4f0" }}>
+                    <th style={{ width: 40, padding: "7px 0 7px 20px" }} />
+                    <th style={{ textAlign: "left", padding: "7px 12px", fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em" }}>Item</th>
+                    <th style={{ textAlign: "left", padding: "7px 12px", fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", width: 90 }}>Location</th>
+                    <th style={{ textAlign: "right", padding: "7px 12px", fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", width: 80 }}>Cost</th>
+                    <th style={{ textAlign: "right", padding: "7px 20px 7px 12px", fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", width: 80 }}>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pickerItems.length === 0 ? (
+                    <tr><td colSpan={5} style={{ padding: "32px 20px", textAlign: "center", fontSize: 12, color: "#b0afa9" }}>No items found</td></tr>
+                  ) : pickerItems.map(item => {
+                    const isSel = lineItemPickerChecked.has(item.catalogId);
+                    return (
+                      <tr key={item.catalogId} className="picker-row" onClick={() => setLineItemPickerChecked(prev => { const next = new Set(prev); if (next.has(item.catalogId)) next.delete(item.catalogId); else next.add(item.catalogId); return next; })} style={{ cursor: "pointer" }}>
+                        <td style={{ padding: "10px 0 10px 20px", borderBottom: "1px solid #f5f4f0" }}>
+                          <input type="checkbox" checked={isSel} onChange={() => {}} style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1a1a18" }} />
+                        </td>
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid #f5f4f0" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <Thumb type={item.thumb} />
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "#1a1a18", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                              <div style={{ fontSize: 11, color: "#b0afa9", marginTop: 1 }}>
+                                <span style={{ fontWeight: 600, color: item.type === "MAT" ? "#a08030" : item.type === "SVC" ? "#5a7a9a" : "#5a7040" }}>{item.type === "MAT" ? "Material" : item.type === "SVC" ? "Service" : "Equipment"}</span>
+                                <span style={{ color: "#d8d7d2", margin: "0 4px" }}>·</span>
+                                <span>per {item.defaultUnit}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid #f5f4f0", fontSize: 12, color: "#6b6a65" }}>{item.location}</td>
+                        <td style={{ padding: "10px 12px", borderBottom: "1px solid #f5f4f0", fontSize: 12, color: "#6b6a65", textAlign: "right", ...tn }}>{$(item.defaultUnitCost)}</td>
+                        <td style={{ padding: "10px 20px 10px 12px", borderBottom: "1px solid #f5f4f0", fontSize: 12, color: "#6b6a65", textAlign: "right", ...tn }}>{$(item.defaultUnitPrice)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Footer */}
+            <div style={{ flexShrink: 0, borderTop: "1px solid #e8e7e2", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "#b0afa9" }}>{lineItemPickerChecked.size > 0 ? `${lineItemPickerChecked.size} selected` : "Select items to add"}</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setLineItemPicker(null)} style={{ fontSize: 13, fontWeight: 600, padding: "8px 18px", borderRadius: 8, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46", transition: "background 120ms ease" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#fafaf8"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                >Go back</button>
+                <button onClick={handleAddLineItems} disabled={lineItemPickerChecked.size === 0} style={{ fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 8, border: "none", background: lineItemPickerChecked.size > 0 ? "#1a1a18" : "#d8d7d2", color: "#fff", cursor: lineItemPickerChecked.size > 0 ? "pointer" : "default", transition: "background 120ms ease" }}
+                  onMouseEnter={e => { if (lineItemPickerChecked.size > 0) e.currentTarget.style.background = "#2a2a28"; }} onMouseLeave={e => { if (lineItemPickerChecked.size > 0) e.currentTarget.style.background = "#1a1a18"; }}
+                >Confirm{lineItemPickerChecked.size > 0 ? ` (${lineItemPickerChecked.size})` : ""}</button>
+              </div>
+            </div>
+          </div>;
+        })() : <>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ fontSize: 17, fontWeight: 500, color: "#1a1a18", letterSpacing: "-0.01em" }}>Add to job</div>
+            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, marginTop: -2 }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#f0eeea"; e.currentTarget.style.color = "#6b6a65"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+            ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+
+          {/* Search */}
+          <div style={{ position: "relative", marginBottom: 12 }}>
+            <svg style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b0afa9" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7.5"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => { setSearch(e.target.value); setCatalogPage(0); }}
+              placeholder="Search parts, services, bundles..."
+              style={{ width: "100%", height: 40, fontSize: 13, padding: "0 36px 0 36px", borderRadius: 10, border: "1px solid #e8e7e2", background: "#fafaf8", outline: "none", color: "#1a1a18", transition: "border-color 120ms ease, box-shadow 120ms ease" }}
+              onFocus={e => { e.currentTarget.style.borderColor = "#c5c4bf"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,0,0,0.04)"; e.currentTarget.style.background = "#fff"; }}
+              onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "#fafaf8"; }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "#e8e7e2", border: "none", cursor: "pointer", color: "#6b6a65", width: 18, height: 18, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>✕</button>
+            )}
+          </div>
+
+          {/* Quick filter dropdowns + active chips */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {QUICK_FILTERS.map(f => {
+              const activeVals = f.values.filter(v => activeFilters.has(v));
+              const isOpen = openDropdown === f.key;
+              return (
+                <div key={f.key} style={{ position: "relative" }} ref={isOpen ? dropdownRef : undefined}>
+                  <button
+                    onClick={() => setOpenDropdown(isOpen ? null : f.key)}
+                    style={{
+                      fontSize: 11, fontWeight: 500, padding: "4px 8px 4px 10px", borderRadius: 6,
+                      border: `1px solid ${activeVals.length > 0 ? "#c5c4bf" : "#eae9e4"}`,
+                      background: activeVals.length > 0 ? "#f0eeea" : "#fafaf8",
+                      color: activeVals.length > 0 ? "#1a1a18" : "#8c8b86",
+                      cursor: "pointer", whiteSpace: "nowrap", transition: "background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out",
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#d0cfca"; e.currentTarget.style.color = "#4a4a46"; }}
+                    onMouseLeave={e => { if (!activeVals.length) { e.currentTarget.style.borderColor = "#eae9e4"; e.currentTarget.style.color = "#8c8b86"; } else { e.currentTarget.style.borderColor = "#c5c4bf"; e.currentTarget.style.color = "#1a1a18"; } }}
+                  >
+                    {f.label}{activeVals.length > 0 && <span style={{ fontSize: 9, background: "#1a1a18", color: "#fff", borderRadius: 4, padding: "1px 5px", fontWeight: 700, lineHeight: 1.2 }}>{activeVals.length}</span>}
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={isOpen ? "M3 7.5L6 4.5L9 7.5" : "M3 4.5L6 7.5L9 4.5"} /></svg>
+                  </button>
+                  {isOpen && (
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+                      background: "#fff", border: "1px solid #e8e7e2", borderRadius: 8,
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)",
+                      padding: "4px 0", minWidth: 160, maxHeight: 220, overflowY: "auto",
+                      animation: "fadeSlideIn 120ms cubic-bezier(0.23, 1, 0.32, 1) both",
+                    }}>
+                      {f.values.map(v => {
+                        const selected = activeFilters.has(v);
+                        const shortLabel = v.length > 20 ? v.split(" & ")[0] : v;
+                        return (
+                          <button key={v} onClick={() => toggleFilter(v)} className="dropdown-item" style={{
+                            display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                            padding: "6px 12px", border: "none", background: "none", cursor: "pointer",
+                            fontSize: 12, color: selected ? "#1a1a18" : "#6b6a65", fontWeight: selected ? 600 : 400,
+                            transition: "background 80ms ease",
+                          }}>
+                            <span style={{
+                              width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                              border: `1.5px solid ${selected ? "#1a1a18" : "#d0cfca"}`,
+                              background: selected ? "#1a1a18" : "#fff",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}>
+                              {selected && <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6L5 8.5L9.5 3.5" /></svg>}
+                            </span>
+                            {shortLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* No individual chips — count badge on dropdown is enough */}
+            {activeFilters.size > 0 && (
+              <button onClick={() => setActiveFilters(new Set())} style={{ fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 6, border: "none", background: "none", color: "#b0afa9", cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.color = "#6b6a65"} onMouseLeave={e => e.currentTarget.style.color = "#b0afa9"}
+              >Clear all</button>
+            )}
+          </div>
+        </div>
+
+        {/* Column headers — fixed above scroll */}
+        {totalVisible > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse", flexShrink: 0 }}>
+            <thead>
+              <tr>
+                <th style={{ ...thBase, width: 40, textAlign: "center", padding: "7px 0 7px 20px" }}>
+                  <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }} onChange={toggleAll}
+                    style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1a1a18" }} />
+                </th>
+                <th style={{ ...thBase, textAlign: "left", paddingLeft: 8 }}>Item</th>
+                <th style={{ ...thBase, width: 100, textAlign: "right", padding: "7px 8px" }}>Cost</th>
+                <th style={{ ...thBase, width: 100, textAlign: "right", padding: "7px 8px" }}>Price</th>
+                <th style={{ ...thBase, width: 120, textAlign: "center", padding: "7px 20px 7px 8px" }}>Qty</th>
+              </tr>
+            </thead>
+          </table>
+        )}
+
+        {/* Data table */}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {totalVisible === 0 ? (
+            <div style={{ textAlign: "center", padding: "56px 24px" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#6b6a65", marginBottom: 4 }}>No results{search ? ` for "${search}"` : ""}</div>
+              <div style={{ fontSize: 13, color: "#b0afa9" }}>Try a broader search or clear filters</div>
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <tbody>
+                {/* Bundles section */}
+                {filteredBundles.length > 0 && (
+                  <>
+                    {filteredBundles.map(bundle => {
+                      const isChecked = checkedBundles.has(bundle.bundleId);
+                      const isExpanded = expandedBundles.has(bundle.bundleId);
+                      const qty = bundleQty.get(bundle.bundleId) || 1;
+                      const lineTotal = qty * bundle.defaultUnitPrice;
+                      const lineCost = qty * bundle.defaultUnitCost;
+                      return (
+                        <Fragment key={bundle.bundleId}>
+                          <tr
+                            className="picker-row"
+                            onClick={() => toggleBundle(bundle.bundleId)}
+                            data-active={detailBundle?.bundleId === bundle.bundleId || undefined}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td style={{ padding: "10px 0 10px 20px", borderBottom: isExpanded ? "none" : "1px solid #f5f4f0" }}>
+                              <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1a1a18" }} />
+                            </td>
+                            <td style={{ padding: "10px 12px 10px 8px", borderBottom: isExpanded ? "none" : "1px solid #f5f4f0" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 34, height: 34, borderRadius: 6, background: "linear-gradient(135deg, #e8eef4 0%, #dbeafe 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span
+                                      onClick={e => { e.stopPropagation(); setDetailBundle(bundle); setDetailItem(null); }}
+                                      className="picker-item-link"
+                                      style={{ fontSize: 13, fontWeight: 500, color: "#1a1a18", cursor: "pointer", transition: "color 100ms ease" }}
+                                    >{bundle.name}</span>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", background: "rgba(59,130,246,0.08)", padding: "1px 6px", borderRadius: 3 }}>BUNDLE</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "#8c8b86", marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                                    <span>{bundle.items.length} items included</span>
+                                    {getBundleDetail(bundle.bundleId, "billable", true) === false && <span style={{ fontSize: 9, fontWeight: 700, color: "#b45309", background: "#fef3c7", padding: "0 5px", borderRadius: 3, lineHeight: "15px" }}>Non-billable</span>}
+                                  </div>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); toggleBundleExpand(bundle.bundleId); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", padding: 4, borderRadius: 4, display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600 }}
+                                  onMouseEnter={e => e.currentTarget.style.color = "#6b6a65"} onMouseLeave={e => e.currentTarget.style.color = "#b0afa9"}
+                                >
+                                  {isExpanded ? "Hide" : "View"}
+                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms ease" }}><path d="M2 3.5l3 3 3-3"/></svg>
+                                </button>
+                              </div>
+                            </td>
+                            <td style={{ width: 100, padding: "10px 8px", borderBottom: isExpanded ? "none" : "1px solid #f5f4f0", textAlign: "right", fontSize: 13, color: "#6b6a65", ...tn }}>
+                              {$(lineCost)}
+                            </td>
+                            <td style={{ width: 100, padding: "10px 8px", borderBottom: isExpanded ? "none" : "1px solid #f5f4f0", textAlign: "right", fontSize: 13, fontWeight: isChecked ? 600 : 400, color: isChecked ? "#1a1a18" : "#6b6a65", ...tn }}>
+                              {$(lineTotal)}
+                            </td>
+                            <td style={{ width: 120, padding: "10px 20px 10px 8px", borderBottom: isExpanded ? "none" : "1px solid #f5f4f0", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                              {isChecked ? (
+                                <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid #d8d7d2", borderRadius: 7, overflow: "hidden", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                                  <button className="qty-btn" onClick={() => setBQty(bundle.bundleId, qty - 1)} style={{ width: 28, height: 28, border: "none", borderRight: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                                  <span style={{ minWidth: 34, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#1a1a18", ...tn }}>{qty}</span>
+                                  <button className="qty-btn" onClick={() => setBQty(bundle.bundleId, qty + 1)} style={{ width: 28, height: 28, border: "none", borderLeft: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 12, color: "#d8d7d2", ...tn }}>1</span>
+                              )}
+                            </td>
+                          </tr>
+                          {/* Bundle expanded items — editable */}
+                          {isExpanded && (
+                            <>
+                              <tr style={{ background: "#f5f4f0" }}>
+                                <td colSpan={5} style={{ padding: "6px 16px 6px 52px" }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 50px 86px 68px 68px 26px", gap: 6, fontSize: 9, fontWeight: 700, color: "#b0afa9", textTransform: "uppercase", letterSpacing: "0.05em", alignItems: "center" }}>
+                                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      Item
+                                      <span style={{ position: "relative" }}>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setAddItemMenu(addItemMenu === bundle.bundleId ? null : bundle.bundleId); }}
+                                          className="btn-press"
+                                          style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, border: "1px solid #d8d7d2", background: "#fff", color: "#6b6a65", cursor: "pointer", textTransform: "none", letterSpacing: 0, lineHeight: "16px", display: "inline-flex", alignItems: "center", gap: 3 }}
+                                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#b0afa9"; e.currentTarget.style.background = "#fafaf8"; }}
+                                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#d8d7d2"; e.currentTarget.style.background = "#fff"; }}
+                                        >
+                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                                          Add Item
+                                        </button>
+                                        {addItemMenu === bundle.bundleId && (
+                                          <div ref={addItemMenuRef} className="dropdown-enter" style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "#fff", borderRadius: 8, border: "1px solid #e8e7e2", boxShadow: "0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04)", padding: "4px 0", minWidth: 140, zIndex: 20, transformOrigin: "top left" }}>
+                                            <button
+                                              className="dropdown-item"
+                                              onClick={e => { e.stopPropagation(); setAddItemMenu(null); setLineItemPicker(bundle.bundleId); setLineItemPickerSearch(""); setLineItemPickerChecked(new Set()); }}
+                                              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px", border: "none", background: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "#1a1a18", textAlign: "left", textTransform: "none", letterSpacing: 0 }}
+                                            >
+                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b6a65" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6M12 9v6"/></svg>
+                                              Line Item
+                                            </button>
+                                            <button
+                                              className="dropdown-item"
+                                              onClick={e => { e.stopPropagation(); setAddItemMenu(null); const customItem = { catalogId: `CUSTOM-${Date.now()}`, name: "Custom item", type: "MAT", qty: 1, unit: "ea", unitCost: 0, unitPrice: 0 }; setAddedBundleItems(prev => { const next = new Map(prev); next.set(bundle.bundleId, [...(next.get(bundle.bundleId) || []), customItem]); return next; }); }}
+                                              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px", border: "none", background: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "#1a1a18", textAlign: "left", textTransform: "none", letterSpacing: 0 }}
+                                            >
+                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b6a65" strokeWidth="1.8" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>
+                                              Custom
+                                            </button>
+                                          </div>
+                                        )}
+                                      </span>
+                                    </span>
+                                    <span>Location</span>
+                                    <span style={{ textAlign: "center" }}>Qty</span>
+                                    <span>Serial No.</span>
+                                    <span style={{ textAlign: "right" }}>Cost</span>
+                                    <span style={{ textAlign: "right" }}>Price</span>
+                                    <span />
+                                  </div>
+                                </td>
+                              </tr>
+                              {(() => { const extraItems = addedBundleItems.get(bundle.bundleId) || []; const allBundleItems = [...bundle.items, ...extraItems]; return allBundleItems.map((bi, idx) => {
+                                const isExtra = idx >= bundle.items.length;
+                                const biDisabled = getBundleItemVal(bundle.bundleId, bi.catalogId, "disabled", false);
+                                const biQty = getBundleItemVal(bundle.bundleId, bi.catalogId, "qty", bi.qty);
+                                const biSerial = getBundleItemVal(bundle.bundleId, bi.catalogId, "serialNo", "");
+                                const biLocation = getBundleItemVal(bundle.bundleId, bi.catalogId, "location", bi.location || "Warehouse");
+                                const biUnitPrice = getBundleItemVal(bundle.bundleId, bi.catalogId, "unitCost", bi.unitCost);
+                                const biSellPrice = getBundleItemVal(bundle.bundleId, bi.catalogId, "unitPrice", bi.unitPrice);
+                                const inputBase = { fontSize: 11, padding: "3px 5px", border: "1px solid #e8e7e2", borderRadius: 4, background: biDisabled ? "#f0eeea" : "#fff", color: biDisabled ? "#b0afa9" : "#1a1a18", width: "100%", outline: "none", fontVariantNumeric: "tabular-nums", transition: "border-color 120ms ease" };
+                                return (
+                                  <tr key={bi.catalogId + "-bdl"} style={{ background: biDisabled ? "#f8f7f5" : "#fafaf8", opacity: biDisabled ? 0.5 : 1, transition: "opacity 150ms ease" }}>
+                                    <td colSpan={5} style={{ padding: "4px 16px 4px 52px", borderBottom: idx === allBundleItems.length - 1 ? "1px solid #eae9e4" : "1px solid #f0eeea" }}>
+                                      <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 50px 86px 68px 68px 26px", gap: 6, alignItems: "center" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, overflow: "hidden" }}>
+                                          <span style={{ fontSize: 12, fontWeight: 500, color: biDisabled ? "#b0afa9" : "#1a1a18", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{bi.name}</span>
+                                          <span style={{ flexShrink: 0, fontSize: 8, fontWeight: 700, color: bi.type === "MAT" ? "#a08030" : bi.type === "SVC" ? "#5a7a9a" : "#5a7040", background: bi.type === "MAT" ? "#f7f0e0" : bi.type === "SVC" ? "#edf2f7" : "#eef4ee", padding: "0 3px", borderRadius: 2, lineHeight: "14px" }}>{bi.type}</span>
+                                        </div>
+                                        <select
+                                          value={biLocation}
+                                          disabled={biDisabled}
+                                          onChange={e => setBundleItemVal(bundle.bundleId, bi.catalogId, "location", e.target.value)}
+                                          style={{ ...inputBase, padding: "3px 1px", cursor: biDisabled ? "default" : "pointer", appearance: "auto", fontSize: 10 }}
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          <option>Warehouse</option>
+                                          <option>Job site</option>
+                                          <option>Vendor</option>
+                                        </select>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          value={biQty}
+                                          disabled={biDisabled}
+                                          onChange={e => setBundleItemVal(bundle.bundleId, bi.catalogId, "qty", Math.max(1, parseInt(e.target.value) || 1))}
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ ...inputBase, textAlign: "center" }}
+                                          onFocus={e => { if (!biDisabled) e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                          onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                                        />
+                                        <input
+                                          type="text"
+                                          placeholder="—"
+                                          value={biSerial}
+                                          disabled={biDisabled}
+                                          onChange={e => setBundleItemVal(bundle.bundleId, bi.catalogId, "serialNo", e.target.value)}
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ ...inputBase, fontSize: 10 }}
+                                          onFocus={e => { if (!biDisabled) e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                          onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                                        />
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          step={0.01}
+                                          value={biUnitPrice}
+                                          disabled={biDisabled}
+                                          onChange={e => setBundleItemVal(bundle.bundleId, bi.catalogId, "unitCost", parseFloat(e.target.value) || 0)}
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ ...inputBase, textAlign: "right" }}
+                                          onFocus={e => { if (!biDisabled) e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                          onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                                        />
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          step={0.01}
+                                          value={biSellPrice}
+                                          disabled={biDisabled}
+                                          onChange={e => setBundleItemVal(bundle.bundleId, bi.catalogId, "unitPrice", parseFloat(e.target.value) || 0)}
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ ...inputBase, textAlign: "right" }}
+                                          onFocus={e => { if (!biDisabled) e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                          onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                                        />
+                                        {isExtra ? (
+                                          <button
+                                            onClick={e => { e.stopPropagation(); setAddedBundleItems(prev => { const next = new Map(prev); const arr = (next.get(bundle.bundleId) || []).filter(x => x.catalogId !== bi.catalogId); if (arr.length) next.set(bundle.bundleId, arr); else next.delete(bundle.bundleId); return next; }); }}
+                                            title="Remove item"
+                                            className="btn-press"
+                                            style={{ width: 22, height: 22, border: "none", borderRadius: 4, background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#b0afa9", transition: "color 120ms ease, background 120ms ease", padding: 0 }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.06)"; e.currentTarget.style.color = "#dc2626"; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+                                          >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={e => { e.stopPropagation(); setBundleItemVal(bundle.bundleId, bi.catalogId, "disabled", !biDisabled); }}
+                                            title={biDisabled ? "Re-enable item" : "Exclude from this transaction"}
+                                            className="btn-press"
+                                            style={{ width: 22, height: 22, border: "none", borderRadius: 4, background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: biDisabled ? "#16a34a" : "#b0afa9", transition: "color 120ms ease, background 120ms ease", padding: 0 }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = biDisabled ? "rgba(22,163,74,0.08)" : "rgba(220,38,38,0.06)"; e.currentTarget.style.color = biDisabled ? "#16a34a" : "#dc2626"; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = biDisabled ? "#16a34a" : "#b0afa9"; }}
+                                          >
+                                            {biDisabled ? (
+                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 12H4M12 4v16"/></svg>
+                                            ) : (
+                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                                            )}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              }); })()}
+                            </>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Individual items — flat list */}
+                {paginatedItems.map((item) => {
+                        const isChecked = checked.has(item.catalogId);
+                        const qty = quantities.get(item.catalogId) || 1;
+                        const itemCost = getItemVal(item.catalogId, "unitCost") !== undefined ? getItemVal(item.catalogId, "unitCost") : item.defaultUnitCost;
+                        const itemPrice = getItemVal(item.catalogId, "unitPrice") !== undefined ? getItemVal(item.catalogId, "unitPrice") : item.defaultUnitPrice;
+                        const editInputStyle = { fontSize: 12, padding: "3px 6px", border: "1px solid #e8e7e2", borderRadius: 4, background: "#fff", color: "#1a1a18", width: "100%", outline: "none", fontVariantNumeric: "tabular-nums", textAlign: "right", transition: "border-color 120ms ease" };
+                        return (
+                          <tr key={item.catalogId}
+                            className="picker-row"
+                            onClick={() => toggleItem(item.catalogId)}
+                            data-active={detailItem?.catalogId === item.catalogId || undefined}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td style={{ padding: "10px 0 10px 20px", borderBottom: "1px solid #f5f4f0" }}>
+                              <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#1a1a18" }} />
+                            </td>
+                            <td style={{ padding: "10px 12px 10px 8px", borderBottom: "1px solid #f5f4f0" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <Thumb type={item.thumb} />
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span
+                                      onClick={e => { e.stopPropagation(); setDetailItem(item); setDetailBundle(null); }}
+                                      className="picker-item-link"
+                                      style={{ fontSize: 13, fontWeight: 500, color: "#1a1a18", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", transition: "color 100ms ease" }}
+                                    >{item.name}</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "#b0afa9", marginTop: 1, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <span style={{ fontWeight: 600, color: item.type === "MAT" ? "#a08030" : item.type === "SVC" ? "#5a7a9a" : "#5a7040" }}>{item.type === "MAT" ? "Material" : item.type === "SVC" ? "Service" : "Equipment"}</span>
+                                    <span style={{ color: "#d8d7d2" }}>·</span>
+                                    <span>per {item.defaultUnit}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ width: 100, padding: "10px 8px", borderBottom: "1px solid #f5f4f0" }} onClick={e => e.stopPropagation()}>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={itemCost}
+                                onChange={e => setItemVal(item.catalogId, "unitCost", parseFloat(e.target.value) || 0)}
+                                style={editInputStyle}
+                                onFocus={e => { e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                              />
+                            </td>
+                            <td style={{ width: 100, padding: "10px 8px", borderBottom: "1px solid #f5f4f0" }} onClick={e => e.stopPropagation()}>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={itemPrice}
+                                onChange={e => setItemVal(item.catalogId, "unitPrice", parseFloat(e.target.value) || 0)}
+                                style={editInputStyle}
+                                onFocus={e => { e.currentTarget.style.borderColor = "#1a1a18"; }}
+                                onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+                              />
+                            </td>
+                            <td style={{ width: 120, padding: "10px 20px 10px 8px", borderBottom: "1px solid #f5f4f0", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                              {isChecked ? (
+                                <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid #d8d7d2", borderRadius: 7, overflow: "hidden", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                                  <button className="qty-btn" onClick={() => setQty(item.catalogId, qty - 1)} style={{ width: 28, height: 28, border: "none", borderRight: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                                  <span style={{ minWidth: 34, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#1a1a18", ...tn }}>{qty}</span>
+                                  <button className="qty-btn" onClick={() => setQty(item.catalogId, qty + 1)} style={{ width: 28, height: 28, border: "none", borderLeft: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 12, color: "#d8d7d2", ...tn }}>1</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ flexShrink: 0, borderTop: "1px solid #e8e7e2" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px" }}>
+            {totalPages > 1 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button disabled={catalogPage === 0} onClick={() => setCatalogPage(p => p - 1)} style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #e8e7e2", background: catalogPage === 0 ? "#fafaf8" : "#fff", cursor: catalogPage === 0 ? "default" : "pointer", color: catalogPage === 0 ? "#d0cfca" : "#6b6a65", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 2 }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M6 2L3 5l3 3"/></svg>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button key={i} onClick={() => setCatalogPage(i)} style={{ width: 28, height: 28, borderRadius: 6, border: i === catalogPage ? "1px solid #1a1a18" : "1px solid transparent", background: i === catalogPage ? "#1a1a18" : "none", color: i === catalogPage ? "#fff" : "#6b6a65", fontSize: 11, fontWeight: i === catalogPage ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</button>
+                ))}
+                <button disabled={catalogPage >= totalPages - 1} onClick={() => setCatalogPage(p => p + 1)} style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #e8e7e2", background: catalogPage >= totalPages - 1 ? "#fafaf8" : "#fff", cursor: catalogPage >= totalPages - 1 ? "default" : "pointer", color: catalogPage >= totalPages - 1 ? "#d0cfca" : "#6b6a65", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 2 }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 2l3 3-3 3"/></svg>
+                </button>
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: "#b0afa9" }}>{totalChecked > 0 ? `${totalChecked} of ${totalVisible} items selected` : `${filtered.length} items`}</span>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={onClose} style={{ fontSize: 13, fontWeight: 600, padding: "8px 18px", borderRadius: 8, border: "1px solid #e0dfda", background: "#fff", cursor: "pointer", color: "#4a4a46", transition: "background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c5c4bf"; e.currentTarget.style.background = "#fafaf8"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "#e0dfda"; e.currentTarget.style.background = "#fff"; }}
+              >Cancel</button>
+              <button
+                onClick={handleConfirm}
+                disabled={totalChecked === 0}
+                style={{ fontSize: 13, fontWeight: 700, padding: "8px 22px", borderRadius: 8, border: "none", background: totalChecked > 0 ? "#1a1a18" : "#d8d7d2", color: "#fff", cursor: totalChecked > 0 ? "pointer" : "default", transition: "background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out" }}
+                onMouseEnter={e => { if (totalChecked > 0) e.currentTarget.style.background = "#2a2a28"; }} onMouseLeave={e => { if (totalChecked > 0) e.currentTarget.style.background = "#1a1a18"; }}
+              >Add {totalChecked > 0 ? `${totalChecked} item${totalChecked !== 1 ? "s" : ""} to job` : "to job"}</button>
+            </div>
+          </div>
+        </div>
+      </>}
+      </div>{/* end left panel */}
+
+      {/* Right detail pane */}
+      {detailItem && (
+        <div className="detail-pane-enter" style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #e8e7e2", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Detail header */}
+          <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #e8e7e2", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "#1a1a18", letterSpacing: "-0.01em", lineHeight: 1.3 }}>Item details</div>
+              <button onClick={() => setDetailItem(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#f0eeea"; e.currentTarget.style.color = "#6b6a65"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+              ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+          </div>
+
+          {/* Detail content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+            {/* Thumb + name */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <Thumb type={detailItem.thumb} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a18", lineHeight: 1.25 }}>{detailItem.name}</div>
+                <div style={{ fontSize: 11, color: "#8c8b86", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontWeight: 600, color: detailItem.type === "MAT" ? "#a08030" : detailItem.type === "SVC" ? "#5a7a9a" : "#5a7040" }}>{detailItem.type === "MAT" ? "Material" : detailItem.type === "SVC" ? "Service" : "Equipment"}</span>
+                  <span style={{ color: "#d8d7d2" }}>·</span>
+                  <span>{detailItem.group}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Details list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {[
+                { label: "Catalog ID", value: detailItem.catalogId },
+                { label: "Unit", value: detailItem.defaultUnit },
+                { label: "Location", value: detailItem.location },
+                { label: "Availability", value: detailItem.availability, badge: true },
+              ].map(({ label, value, badge }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+                  <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>{label}</span>
+                  {badge ? (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
+                      background: value === "In stock" ? "#dcfce7" : value === "Low stock" ? "#fef3c7" : "#f0eeea",
+                      color: value === "In stock" ? "#166534" : value === "Low stock" ? "#92400e" : "#6b6a65",
+                    }}>{value}</span>
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{value}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Add / remove + quantity */}
+            <div style={{ marginTop: 20 }}>
+              {checked.has(detailItem.catalogId) ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button className="btn-press" onClick={() => toggleItem(detailItem.catalogId)} style={{
+                    padding: "9px 14px", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                    border: "1px solid #e0dfda", background: "#fff", color: "#6b6a65", cursor: "pointer",
+                    whiteSpace: "nowrap", flexShrink: 0,
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#dc2626"; e.currentTarget.style.color = "#dc2626"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#e0dfda"; e.currentTarget.style.color = "#6b6a65"; }}
+                  >Remove</button>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", border: "1px solid #d8d7d2", borderRadius: 8, overflow: "hidden", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                    <button className="qty-btn" onClick={() => setQty(detailItem.catalogId, (quantities.get(detailItem.catalogId) || 1) - 1)} style={{ width: 32, height: 34, border: "none", borderRight: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    <span style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#1a1a18", ...tn }}>{quantities.get(detailItem.catalogId) || 1} <span style={{ fontSize: 11, fontWeight: 500, color: "#8c8b86" }}>{UNIT_LABELS[detailItem.defaultUnit] || detailItem.defaultUnit}</span></span>
+                    <button className="qty-btn" onClick={() => setQty(detailItem.catalogId, (quantities.get(detailItem.catalogId) || 1) + 1)} style={{ width: 32, height: 34, border: "none", borderLeft: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="btn-press" onClick={() => { toggleItem(detailItem.catalogId); }} style={{
+                  width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                  border: "none", background: "#1a1a18", color: "#fff", cursor: "pointer",
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#2a2a28"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1a1a18"}
+                >Add to selection</button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Right detail pane — Bundle */}
+      {detailBundle && (
+        <div className="detail-pane-enter" style={{ width: 300, flexShrink: 0, borderLeft: "1px solid #e8e7e2", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #e8e7e2", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "#1a1a18", letterSpacing: "-0.01em", lineHeight: 1.3 }}>Bundle details</div>
+              <button onClick={() => setDetailBundle(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#b0afa9", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#f0eeea"; e.currentTarget.style.color = "#6b6a65"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#b0afa9"; }}
+              ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+            {/* Bundle icon + name */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #e8eef4 0%, #dbeafe 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: "#1a1a18", lineHeight: 1.25 }}>{detailBundle.name}</div>
+                <div style={{ fontSize: 11, color: "#8c8b86", marginTop: 2 }}>{detailBundle.items.length} items included</div>
+              </div>
+            </div>
+
+            {/* Description — editable */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Description</div>
+              <textarea
+                value={getBundleDetail(detailBundle.bundleId, "description", detailBundle.description || "")}
+                onChange={e => setBundleDetail(detailBundle.bundleId, "description", e.target.value)}
+                placeholder="Add a description..."
+                rows={3}
+                style={{ width: "100%", fontSize: 12, color: "#1a1a18", lineHeight: 1.5, padding: "8px 10px", border: "1px solid #e8e7e2", borderRadius: 6, background: "#fff", outline: "none", resize: "vertical", fontFamily: "inherit", transition: "border-color 120ms ease" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#1a1a18"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e8e7e2"; }}
+              />
+            </div>
+
+            {/* Bundle cost & sell price — view only */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              <div style={{ background: "#fafaf8", border: "1px solid #eae9e4", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Bundle Cost</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18", ...tn }}>{$(detailBundle.defaultUnitCost)}</div>
+              </div>
+              <div style={{ background: "#fafaf8", border: "1px solid #eae9e4", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#8c8b86", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Sell Price</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18", ...tn }}>{$(detailBundle.defaultUnitPrice)}</div>
+              </div>
+            </div>
+
+            {/* Billable & Profitability switchers */}
+            {(() => {
+              const billable = getBundleDetail(detailBundle.bundleId, "billable", true);
+              const forProfit = getBundleDetail(detailBundle.bundleId, "forProfitability", true);
+              const rowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0eeea" };
+              const switcherStyle = { display: "inline-flex", borderRadius: 6, border: "1px solid #e0dfda", overflow: "hidden", flexShrink: 0 };
+              const optStyle = (active) => ({
+                fontSize: 11, fontWeight: 600, padding: "4px 12px", border: "none", cursor: "pointer",
+                background: active ? "#1a1a18" : "#fff", color: active ? "#fff" : "#8c8b86",
+                transition: "background 120ms ease, color 120ms ease",
+              });
+              return (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={rowStyle}>
+                    <span style={{ fontSize: 12, color: "#1a1a18", fontWeight: 500 }}>Billable</span>
+                    <div style={switcherStyle}>
+                      <button style={optStyle(billable)} onClick={() => setBundleDetail(detailBundle.bundleId, "billable", true)}>Yes</button>
+                      <button style={optStyle(!billable)} onClick={() => setBundleDetail(detailBundle.bundleId, "billable", false)}>No</button>
+                    </div>
+                  </div>
+                  <div style={rowStyle}>
+                    <span style={{ fontSize: 12, color: "#1a1a18", fontWeight: 500 }}>Consider for Profitability</span>
+                    <div style={switcherStyle}>
+                      <button style={optStyle(forProfit)} onClick={() => setBundleDetail(detailBundle.bundleId, "forProfitability", true)}>Yes</button>
+                      <button style={optStyle(!forProfit)} onClick={() => setBundleDetail(detailBundle.bundleId, "forProfitability", false)}>No</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Bundle ID */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0eeea" }}>
+              <span style={{ fontSize: 12, color: "#8c8b86", fontWeight: 500 }}>Bundle ID</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#1a1a18" }}>{detailBundle.bundleId}</span>
+            </div>
+
+            {/* Add / remove + quantity */}
+            <div style={{ marginTop: 16 }}>
+              {checkedBundles.has(detailBundle.bundleId) ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button className="btn-press" onClick={() => toggleBundle(detailBundle.bundleId)} style={{
+                    padding: "9px 14px", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                    border: "1px solid #e0dfda", background: "#fff", color: "#6b6a65", cursor: "pointer",
+                    whiteSpace: "nowrap", flexShrink: 0,
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#dc2626"; e.currentTarget.style.color = "#dc2626"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#e0dfda"; e.currentTarget.style.color = "#6b6a65"; }}
+                  >Remove</button>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", border: "1px solid #d8d7d2", borderRadius: 8, overflow: "hidden", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                    <button className="qty-btn" onClick={() => setBQty(detailBundle.bundleId, (bundleQty.get(detailBundle.bundleId) || 1) - 1)} style={{ width: 32, height: 34, border: "none", borderRight: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                    <span style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#1a1a18", ...tn }}>{bundleQty.get(detailBundle.bundleId) || 1} <span style={{ fontSize: 11, fontWeight: 500, color: "#8c8b86" }}>bundle</span></span>
+                    <button className="qty-btn" onClick={() => setBQty(detailBundle.bundleId, (bundleQty.get(detailBundle.bundleId) || 1) + 1)} style={{ width: 32, height: 34, border: "none", borderLeft: "1px solid #eae9e4", background: "none", cursor: "pointer", fontSize: 15, color: "#6b6a65", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="btn-press" onClick={() => toggleBundle(detailBundle.bundleId)} style={{
+                  width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 8,
+                  border: "none", background: "#1a1a18", color: "#fff", cursor: "pointer",
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#2a2a28"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1a1a18"}
+                >Add to selection</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>{/* end dialog container */}
+
+      {/* Line Item picker mini-dialog */}
+
+    </div>
+  );
+}
+
 
 export default function App() {
   const [demoEmpty, setDemoEmpty] = useState(false);
