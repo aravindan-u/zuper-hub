@@ -3,10 +3,11 @@ import { Home, Radar } from "lucide-react";
 import HomePage from "./home-page.jsx";
 import RadarPage from "./radar-page.jsx";
 import SensePage from "./sense-page.jsx";
+import SettingsPage from "./settings-page.jsx";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const ACCENT       = "#E8522A";
-const ACCENT_BG    = "#FEF3EB";
+const ACCENT       = "#FD5000";
+const ACCENT_BG    = "#FFF0E8";
 const SIDEBAR_BG   = "#F9F9F9";
 const TEXT_PRIMARY = "#1A1A1A";
 const TEXT_SEC     = "#6B7280";
@@ -642,6 +643,44 @@ export function ZuperShell({ children }) {
               }}>⌘K</span>
             </button>
 
+            {/* Self-serve onboarding entry points */}
+            <button
+              onClick={() => { window.location.hash = "#/onboarding"; }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "0 12px", height: 32, borderRadius: 6,
+                background: ACCENT_BG, border: `1px solid #FFD2BC`,
+                cursor: "pointer", fontSize: 13, fontWeight: 700, color: ACCENT,
+                flexShrink: 0, whiteSpace: "nowrap",
+              }}
+            >
+              Option 1 setup
+            </button>
+            <button
+              onClick={() => { window.location.hash = "#/lead-hub-onboarding"; }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "0 12px", height: 32, borderRadius: 6,
+                background: "#fff", border: `1px solid #FFD2BC`,
+                cursor: "pointer", fontSize: 13, fontWeight: 700, color: ACCENT,
+                flexShrink: 0, whiteSpace: "nowrap",
+              }}
+            >
+              Option 2 Zuper setup
+            </button>
+            <button
+              onClick={() => { window.location.hash = "#/login-first-onboarding"; }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "0 12px", height: 32, borderRadius: 6,
+                background: "#fff", border: `1px solid #FFD2BC`,
+                cursor: "pointer", fontSize: 13, fontWeight: 700, color: ACCENT,
+                flexShrink: 0, whiteSpace: "nowrap",
+              }}
+            >
+              Option 3 login setup
+            </button>
+
             {/* Context-aware + New */}
             <button style={{
               display: "flex", alignItems: "center", gap: 6,
@@ -684,7 +723,7 @@ export function ZuperShell({ children }) {
 
           {/* Main content area */}
           <div style={{ flex: 1, overflow: "hidden", background: "#F9F9F9" }}>
-            {activePage === "home" ? <HomePage /> : activePage === "radar" ? <RadarPage /> : activePage === "sense" ? <SensePage /> : children}
+            {activePage === "home" ? <HomePage /> : activePage === "radar" ? <RadarPage /> : activePage === "sense" ? <SensePage /> : activePage === "settings" ? <SettingsPage /> : children}
           </div>
         </div>
       </div>

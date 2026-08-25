@@ -1,6 +1,6 @@
 import React from "react";
 
-const ACCENT = "#E8522A";
+const ACCENT = "#FD5000";
 const TEXT_PRIMARY = "#1A1A1A";
 const TEXT_SEC = "#6B7280";
 const BORDER = "#E5E7EB";
@@ -30,6 +30,26 @@ export default function HomePage() {
         <p style={{ fontSize: 16, color: TEXT_SEC, lineHeight: 1.5 }}>
           Here's what's happening across your business today.
         </p>
+      </div>
+
+      {/* Finish-setup banner → launches the self-serve onboarding flow */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 16, marginBottom: 32,
+        background: "linear-gradient(120deg, #FEF3EB, #FFF9F4)", border: "1px solid #F4D9C8",
+        borderRadius: 14, padding: "16px 20px",
+      }}>
+        <div style={{ width: 42, height: 42, borderRadius: 11, background: ACCENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>✨</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY }}>Finish setting up your workspace</div>
+          <div style={{ fontSize: 13.5, color: TEXT_SEC, marginTop: 2 }}>Take the 2-minute guided setup to tailor Zuper to your business.</div>
+        </div>
+        <button
+          onClick={() => { window.location.hash = "#/onboarding"; }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#C43D18")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}
+          style={{ background: ACCENT, color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontSize: 14.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "background 140ms ease" }}>
+          Start setup guide →
+        </button>
       </div>
 
       {/* Hub Status Cards */}
