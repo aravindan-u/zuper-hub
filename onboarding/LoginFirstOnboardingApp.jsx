@@ -99,7 +99,9 @@ const MANUFACTURER_CATALOG = [
 ];
 const INVITE_ROLES = ["Sales", "Inspector", "Production", "Dispatcher", "Finance", "Admin"];
 const WEBSITE_SERVICE_OPTIONS = ["Roof replacement", "Roof repair", "Storm damage", "Commercial roofing", "Gutters", "Skylights"];
-const ONBOARDING_GROUPS = ["Work setup", "People and delivery", "Catalog and pricing", "Platforms"];
+// Order follows the onboarding stage plan: CRM + services, then products and
+// vendors, then users and teams, then data migration / platforms.
+const ONBOARDING_GROUPS = ["Work setup", "Catalog and pricing", "People and delivery", "Platforms"];
 const INSURANCE_MODES = ["Insurance work", "Non-insurance work", "Both"];
 const BUSINESS_HOURS = ["Weekdays, 8 AM-5 PM", "Weekdays, 7 AM-6 PM", "Monday-Saturday", "24/7 emergency coverage", "Set hours manually"];
 const TIME_OPTIONS = ["6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"];
@@ -108,6 +110,24 @@ const COMMUNICATION_PLATFORMS = ["RingCentral", "Twilio", "No existing platform"
 const ONBOARDING_SCHEMA_VERSION = "zuper-login-first-onboarding-v1";
 // Login-first variant: no "Who are you?" step, so the wizard is one screen shorter than Option 2.
 const WIZARD_STEP_COUNT = 10;
+// CRM path collapses inventory/proposal/quoting/invite/platforms into one summary.
+const MIGRATION_STEP_COUNT = 6;
+// What a connected CRM hands over, so the summary has something to affirm.
+const MIGRATION_PREFILL = {
+  suppliers: ["SRS Distribution", "ABC Supply"],
+  manufacturers: ["GAF", "CertainTeed"],
+  proposalPath: "Template",
+  proposalTemplate: "Insurance",
+  integrations: ["QBO"],
+  communicationPlatform: "RingCentral",
+  subcontractors: ["Coastal Gutter Co.", "Piedmont Sheet Metal"],
+  teammates: [
+    { email: "dana@mavenroof.com", role: "Sales" },
+    { email: "marcus@mavenroof.com", role: "Production" },
+    { email: "priya@mavenroof.com", role: "Finance" },
+  ],
+  transactional: [["412", "Jobs"], ["286", "Invoices"], ["173", "Quotes"]],
+};
 
 const seed = {
   email: "",
@@ -127,6 +147,12 @@ const seed = {
   websiteVisited: false,
   currentSystem: "",
   migrationConnected: "",
+  subcontractors: [],
+  affirmed: [],
+  triggerProductImport: true,
+  triggerJumpStart: true,
+  triggerInvites: true,
+  triggerDataMigration: false,
   insuranceMode: "",
   // No business-hours question any more — the website prefill supplies this.
   businessHours: "",
@@ -239,7 +265,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
             .lh-lead-row { grid-template-columns: 1fr !important; }
           }
         `}</style>
-        {mode !== "product" && mode !== "welcome" && <ProgressBar pct={progressFor(mode, wizardStep)} />}
+        {mode !== "product" && mode !== "welcome" && <ProgressBar pct={progressFor(mode, wizardStep, data)} />}
         {onExit && <ExitButton onClick={exit} />}
 
       {mode === "welcome" && <WelcomeScreen onStart={() => { setMode("wizard"); setWizardStep(0); }} />}
@@ -433,20 +459,35 @@ function MigrationReconnect({ data, set, connectionState, setConnectionState, so
 }
 
 function LeadWizard({ step, setStep, data, set, bucket, onComplete }) {
-  const screens = [
+  const head = [
     <LoginScreen data={data} set={set} onNext={() => setStep(1)} />,
     <CodeScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
     <WebsiteFetchScreen data={data} set={set} onBack={() => setStep(1)} onNext={() => setStep(3)} />,
     <BusinessSystemScreen data={data} set={set} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
-    <InventoryScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
-    <ProposalScreen data={data} set={set} bucket={bucket} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
-    <CPQImportScreen data={data} set={set} onBack={() => setStep(5)} onNext={() => setStep(7)} />,
-    <PlatformQuestionsScreen data={data} set={set} onBack={() => setStep(6)} onNext={() => setStep(8)} />,
-    <InviteScreen data={data} set={set} onBack={() => setStep(7)} onNext={() => setStep(9)} />,
-    <RecapScreen data={data} bucket={bucket} onBack={() => setStep(8)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
   ];
+  // Coming from a CRM, everything downstream is prefilled — the user affirms one
+  // summary instead of answering each question again.
+  const screens = isMigrating(data)
+    ? [
+        ...head,
+        <MigrationSummaryScreen data={data} set={set} bucket={bucket} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
+        <RecapScreen data={data} bucket={bucket} onBack={() => setStep(4)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
+      ]
+    : [
+        ...head,
+        <InventoryScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
+        <ProposalScreen data={data} set={set} bucket={bucket} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
+        <CPQImportScreen data={data} set={set} onBack={() => setStep(5)} onNext={() => setStep(7)} />,
+        <InviteScreen data={data} set={set} onBack={() => setStep(6)} onNext={() => setStep(8)} />,
+        <PlatformQuestionsScreen data={data} set={set} onBack={() => setStep(7)} onNext={() => setStep(9)} />,
+        <RecapScreen data={data} bucket={bucket} onBack={() => setStep(8)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
+      ];
   const safeStep = Number.isInteger(step) && step >= 0 && step < screens.length ? step : 0;
   return screens[safeStep];
+}
+
+function isMigrating(data) {
+  return Boolean(data.currentSystem) && data.currentSystem !== "Starting fresh";
 }
 
 // The welcome landing page now carries the intro, so this screen goes straight to the form.
@@ -714,7 +755,10 @@ function BusinessSystemScreen({ data, set, onBack, onNext }) {
                   <MigrationCredentials
                     system={system}
                     connected={connected}
-                    onConnected={() => set("migrationConnected", system.id)}
+                    onConnected={() => {
+                      set("migrationConnected", system.id);
+                      Object.entries(MIGRATION_PREFILL).forEach(([key, value]) => set(key, value));
+                    }}
                   />
                 )}
               </React.Fragment>
@@ -947,6 +991,136 @@ function ProposalScreen({ data, set, bucket, onBack, onNext }) {
         <Btn disabled={data.proposalPath === "Upload" && !data.proposalUploaded} onClick={onNext} IconR={ArrowRight}>Continue</Btn>
       </Footer>
     </Question>
+  );
+}
+
+// CRM path: every downstream stage is prefilled from the import, so the user
+// affirms one summary instead of re-answering each question.
+function MigrationSummaryScreen({ data, set, bucket, onBack, onNext }) {
+  const source = data.currentSystem;
+  const categories = jobDefaultTreeFor(data, bucket);
+  const services = listOf(data.services);
+  const suppliers = listOf(data.suppliers);
+  const subcontractors = listOf(data.subcontractors);
+  const teammates = listOf(data.teammates);
+  const affirmed = listOf(data.affirmed);
+  const affirm = (id) => toggleList(affirmed, id, (next) => set("affirmed", next));
+
+  const sections = [
+    {
+      id: "services",
+      icon: Inbox,
+      title: "Services offered",
+      note: `Read from your ${source} job types and price list.`,
+      chips: [...services, data.insuranceMode].filter(Boolean),
+    },
+    {
+      id: "products",
+      icon: FileText,
+      title: "Product set-up",
+      note: `${categories.length} product categories identified from ${source}.`,
+      chips: categories.map((item) => item.category),
+      trigger: { key: "triggerProductImport", label: "Trigger product master import" },
+    },
+    {
+      id: "vendors",
+      icon: Package,
+      title: "Vendors and sub-contractors",
+      note: "Matched to the vendors already attached to your purchase orders.",
+      chips: [...suppliers, ...subcontractors],
+      trigger: { key: "triggerJumpStart", label: "Trigger Jump Start" },
+    },
+    {
+      id: "people",
+      icon: Users,
+      title: "Users and teams",
+      note: `${teammates.length} users found. Edit roles later in Settings.`,
+      chips: teammates.map((member) => `${member.email} · ${member.role}`),
+      trigger: { key: "triggerInvites", label: "Send email invitations" },
+    },
+  ];
+
+  const allAffirmed = sections.every((section) => affirmed.includes(section.id));
+
+  return (
+    <Question
+      group="Catalog and pricing"
+      title={`Here is what we found in ${source}`}
+      subtitle="Zuper prefilled your workspace from the import. Confirm each section — you can change any of it later."
+      onBack={onBack}
+    >
+      <div style={{ display: "grid", gap: 10 }}>
+        {sections.map((section) => (
+          <SummarySection
+            key={section.id}
+            section={section}
+            confirmed={affirmed.includes(section.id)}
+            onConfirm={() => affirm(section.id)}
+            triggerOn={section.trigger ? Boolean(data[section.trigger.key]) : false}
+            onTrigger={section.trigger ? () => set(section.trigger.key, !data[section.trigger.key]) : null}
+          />
+        ))}
+
+        {/* Stage 6 in the plan — optional, so it never blocks Continue. */}
+        <div style={{ ...darkPanel, borderStyle: "dashed" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <span style={recapIconTile}><RefreshCcw size={16} /></span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#f4f4f4" }}>Transactional data migration</div>
+              <div style={{ fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>Optional — runs in the background after setup.</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "14px 0" }}>
+            {MIGRATION_PREFILL.transactional.map(([value, label]) => (
+              <div key={label} style={recapStatCard}>
+                <div style={{ fontSize: 20, fontWeight: 950, color: "#f4f4f4", lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#8f8f8f", marginTop: 5 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <DarkOption
+            selected={Boolean(data.triggerDataMigration)}
+            onClick={() => set("triggerDataMigration", !data.triggerDataMigration)}
+            title="Initiate data import"
+          />
+        </div>
+      </div>
+      <Footer>
+        <Btn disabled={!allAffirmed} onClick={onNext} IconR={ArrowRight}>
+          {allAffirmed ? "Confirm and continue" : "Confirm each section"}
+        </Btn>
+      </Footer>
+    </Question>
+  );
+}
+
+function SummarySection({ section, confirmed, onConfirm, triggerOn, onTrigger }) {
+  const SectionIcon = section.icon;
+  return (
+    <div style={{ ...darkPanel, borderColor: confirmed ? "rgba(52,168,95,.4)" : "#303030" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <span style={recapIconTile}><SectionIcon size={16} /></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#f4f4f4" }}>{section.title}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{section.note}</div>
+        </div>
+        <button onClick={onConfirm} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", color: confirmed ? "#5fd18b" : "#dcdcdc" }}>
+          {confirmed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+          {confirmed ? "Confirmed" : "Looks right"}
+        </button>
+      </div>
+      {section.chips.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+          {section.chips.map((chip) => <span key={chip} style={summaryChip}>{chip}</span>)}
+        </div>
+      )}
+      {onTrigger && (
+        <button onClick={onTrigger} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, color: triggerOn ? "#5fd18b" : "#dcdcdc" }}>
+          <span style={checkBox(triggerOn)}>{triggerOn && "✓"}</span>
+          {section.trigger.label}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -2182,13 +2356,13 @@ function initialsFor(name) {
 
 function panelForStep(mode, step, data) {
   if (mode !== "wizard") return "work";
-  if (step === 3) return "work";
+  if (step === 2 || step === 3) return "work";
+  if (isMigrating(data)) return step === 4 ? "catalog" : "people";
   if (step === 4) return "catalog";
   if (step === 5) return "proposal";
   if (step === 6) return "quoting";
-  if (step === 2) return "work";
-  if (step === 7) return "platforms";
-  if (step === 8 || step === 9) return "people";
+  if (step === 8) return "platforms";
+  if (step === 7 || step === 9) return "people";
   if (listOf(data.services).length) return "work";
   return "summary";
 }
@@ -2253,10 +2427,13 @@ function sourceFieldsOk(data) {
   return Boolean(textOf(data.sourceName).trim() && String(data.costPerLead ?? "").trim() && textOf(data.attributionId).trim());
 }
 
-function progressFor(mode, step) {
+function progressFor(mode, step, data) {
   if (mode === "hub") return 38;
   if (mode.startsWith("migration")) return mode === "migration-source" ? 38 : mode === "migration-preview" ? 58 : 78;
-  if (mode === "wizard") return Math.min(96, 14 + Math.round((step * 82) / (WIZARD_STEP_COUNT - 1)));
+  if (mode === "wizard") {
+    const total = isMigrating(data) ? MIGRATION_STEP_COUNT : WIZARD_STEP_COUNT;
+    return Math.min(96, 14 + Math.round((step * 82) / (total - 1)));
+  }
   return 100;
 }
 
@@ -2323,6 +2500,7 @@ const loopPill = { borderRadius: 20, padding: "6px 10px", fontSize: 12, fontWeig
 const flowBox = { position: "relative", border: "1px solid #3b3b3b", background: "#252525", color: "#f1f1f1", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
 const miniRemove = { marginLeft: 8, border: "none", background: "#3a3a3a", color: "#ddd", borderRadius: 8, cursor: "pointer" };
 const hintRow = { display: "flex", alignItems: "flex-start", gap: 8, color: "#9a9a9a", fontSize: 13, lineHeight: 1.45, maxWidth: 520 };
+const summaryChip = { display: "inline-flex", alignItems: "center", border: "1px solid #333", background: "#232323", color: "#e2e2e2", borderRadius: 20, padding: "6px 12px", fontSize: 12.5, fontWeight: 800 };
 const fetchSpinner = { width: 16, height: 16, borderRadius: "50%", border: "2px solid #333", borderTopColor: "#8f8f8f", animation: "lh-spin .7s linear infinite", flexShrink: 0, display: "inline-block" };
 const systemCard = (active) => ({ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 74, borderRadius: 12, border: `1px solid ${active ? "#e5e5e5" : "#303030"}`, background: active ? "#242424" : "#171717", padding: "12px 16px", cursor: "pointer", textAlign: "left" });
 const systemLogoTile = { width: 46, height: 46, borderRadius: 10, background: "#fff", border: "1px solid #e5e7eb", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden", padding: 6 };
