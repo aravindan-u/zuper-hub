@@ -107,13 +107,27 @@ const BUSINESS_HOURS = ["Weekdays, 8 AM-5 PM", "Weekdays, 7 AM-6 PM", "Monday-Sa
 const TIME_OPTIONS = ["6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"];
 const PLATFORM_INTEGRATIONS = ["QBO", "HubSpot", "None yet"];
 const COMMUNICATION_PLATFORMS = ["RingCentral", "Twilio", "No existing platform"];
+const MEASUREMENT_TOOLS = [
+  { id: "EagleView", note: "Aerial roof measurement reports" },
+  { id: "Hover", note: "3D property models from photos" },
+  { id: "RoofSnap", note: "On-site measurement and estimating" },
+  { id: "None yet", note: "We measure manually today" },
+];
 const ONBOARDING_SCHEMA_VERSION = "zuper-login-first-onboarding-v1";
 // Login-first variant: no "Who are you?" step, so the wizard is one screen shorter than Option 2.
-const WIZARD_STEP_COUNT = 10;
+const WIZARD_STEP_COUNT = 7;
 // CRM path collapses inventory/proposal/quoting/invite/platforms into one summary.
 const MIGRATION_STEP_COUNT = 6;
 // What a connected CRM hands over, so the summary has something to affirm.
 const MIGRATION_PREFILL = {
+  // Services/coverage read out of the CRM — this is the "auto-filled where possible" half
+  // of the migrate step; the user can still switch to manual entry.
+  companyName: PREFILL_PROFILE.name,
+  logo: PREFILL_PROFILE.logo,
+  services: PREFILL_PROFILE.services,
+  insuranceMode: PREFILL_PROFILE.insuranceMode,
+  workType: PREFILL_PROFILE.workType,
+  businessHours: PREFILL_PROFILE.businessHours,
   suppliers: ["SRS Distribution", "ABC Supply"],
   manufacturers: ["GAF", "CertainTeed"],
   proposalPath: "Template",
@@ -145,9 +159,14 @@ const seed = {
   websiteUrl: "",
   websiteFetched: false,
   websiteVisited: false,
+  migrationFetched: false,
   currentSystem: "",
   migrationConnected: "",
   subcontractors: [],
+  measurementTools: [],
+  proposalFileName: "",
+  cardAdded: false,
+  cardSkipped: false,
   affirmed: [],
   triggerProductImport: true,
   triggerJumpStart: true,
@@ -201,7 +220,7 @@ class OnboardingErrorBoundary extends React.Component {
 }
 
 export default function LoginFirstOnboardingApp({ onExit } = {}) {
-  const [mode, setMode] = useState("welcome");
+  const [mode, setMode] = useState("email");
   const [data, setData] = useState(seed);
   const [selectedHub, setSelectedHub] = useState("");
   const [wizardStep, setWizardStep] = useState(0);
@@ -219,7 +238,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
     if (typeof window === "undefined") return;
     if (window.__loginFirstOnboardingSchemaVersion === ONBOARDING_SCHEMA_VERSION) return;
     window.__loginFirstOnboardingSchemaVersion = ONBOARDING_SCHEMA_VERSION;
-    setMode("welcome");
+    setMode("email");
     setData(seed);
     setSelectedHub("");
     setWizardStep(0);
@@ -251,7 +270,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
   return (
     <OnboardingErrorBoundary key={ONBOARDING_SCHEMA_VERSION}>
     <PreviewContext.Provider value={{ data, bucket, migration, selectedHub, wizardStep, mode }}>
-      <div style={{ minHeight: "100vh", background: mode === "product" ? T.canvas : mode === "welcome" ? "#fff" : "#050505", fontFamily: T.font, color: T.text }}>
+      <div style={{ minHeight: "100vh", background: mode === "product" ? T.canvas : mode === "email" ? "#F8F0EB" : mode === "welcome" ? "#fff" : "#050505", fontFamily: T.font, color: T.text }}>
         <GlobalStyle />
         <style>{`
           @keyframes lh-spin { to { transform: rotate(360deg); } }
@@ -265,9 +284,10 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
             .lh-lead-row { grid-template-columns: 1fr !important; }
           }
         `}</style>
-        {mode !== "product" && mode !== "welcome" && <ProgressBar pct={progressFor(mode, wizardStep, data)} />}
+        {mode !== "product" && mode !== "welcome" && mode !== "email" && <ProgressBar pct={progressFor(mode, wizardStep, data)} />}
         {onExit && <ExitButton onClick={exit} />}
 
+      {mode === "email" && <WelcomeEmailScreen onStart={() => { setMode("wizard"); setWizardStep(0); }} />}
       {mode === "welcome" && <WelcomeScreen onStart={() => { setMode("wizard"); setWizardStep(0); }} />}
       {mode === "hub" && (
         <HubPicker
@@ -459,29 +479,17 @@ function MigrationReconnect({ data, set, connectionState, setConnectionState, so
 }
 
 function LeadWizard({ step, setStep, data, set, bucket, onComplete }) {
-  const head = [
-    <LoginScreen data={data} set={set} onNext={() => setStep(1)} />,
-    <CodeScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
-    <WebsiteFetchScreen data={data} set={set} onBack={() => setStep(1)} onNext={() => setStep(3)} />,
-    <BusinessSystemScreen data={data} set={set} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
+  // Flow after the welcome email link: tools in use -> migrate -> confirm ->
+  // card on file (optional) -> done.
+  const screens = [
+    <CrmScreen data={data} set={set} onNext={() => setStep(1)} />,
+    <VendorToolsScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
+    <MigrateDataScreen data={data} set={set} onBack={() => setStep(1)} onNext={() => setStep(3)} />,
+    <TeamConfirmScreen data={data} set={set} bucket={bucket} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
+    <ProposalSetupScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
+    <CardOnFileScreen data={data} set={set} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
+    <RecapScreen data={data} bucket={bucket} onBack={() => setStep(5)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
   ];
-  // Coming from a CRM, everything downstream is prefilled — the user affirms one
-  // summary instead of answering each question again.
-  const screens = isMigrating(data)
-    ? [
-        ...head,
-        <MigrationSummaryScreen data={data} set={set} bucket={bucket} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
-        <RecapScreen data={data} bucket={bucket} onBack={() => setStep(4)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
-      ]
-    : [
-        ...head,
-        <InventoryScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
-        <ProposalScreen data={data} set={set} bucket={bucket} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
-        <CPQImportScreen data={data} set={set} onBack={() => setStep(5)} onNext={() => setStep(7)} />,
-        <InviteScreen data={data} set={set} onBack={() => setStep(6)} onNext={() => setStep(8)} />,
-        <PlatformQuestionsScreen data={data} set={set} onBack={() => setStep(7)} onNext={() => setStep(9)} />,
-        <RecapScreen data={data} bucket={bucket} onBack={() => setStep(8)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
-      ];
   const safeStep = Number.isInteger(step) && step >= 0 && step < screens.length ? step : 0;
   return screens[safeStep];
 }
@@ -810,14 +818,6 @@ function MigrationCredentials({ system, connected, onConnected }) {
           <CheckCircle2 size={17} color="#5fd18b" />
           <span style={{ fontSize: 14.5, fontWeight: 900, color: "#f1f1f1" }}>{system.label} connected</span>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-          {system.imports.map(([value, label]) => (
-            <div key={label} style={recapStatCard}>
-              <div style={{ fontSize: 20, fontWeight: 950, color: "#f4f4f4", lineHeight: 1 }}>{value}</div>
-              <div style={{ fontSize: 11.5, fontWeight: 800, color: "#8f8f8f", marginTop: 5 }}>{label}</div>
-            </div>
-          ))}
-        </div>
         <div style={{ fontSize: 12.5, fontWeight: 850, color: "#8f8f8f", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
           What Zuper will bring over
         </div>
@@ -1121,6 +1121,462 @@ function SummarySection({ section, confirmed, onConfirm, triggerOn, onTrigger })
         </button>
       )}
     </div>
+  );
+}
+
+// ─── Welcome email: the flow starts by clicking through from the inbox ───────
+function WelcomeEmailScreen({ onStart }) {
+  const steps = [
+    "Tell us a bit about how your business works",
+    "We'll import your existing data and set up your workflow, catalog, and proposal template automatically",
+    "Invite your team",
+    "Run your first real job",
+  ];
+  return (
+    <div style={{ minHeight: "100vh", background: "#F8F0EB", padding: "0 0 40px", color: "#191919" }}>
+      <div style={{ textAlign: "center", padding: "32px 16px 24px" }}>
+        <img src="/zuper-wordmark.png" alt="Zuper" style={{ height: 26, width: "auto", display: "inline-block" }} />
+      </div>
+
+      <div style={emailCard}>
+        <div style={{ padding: "44px 44px 0" }}>
+          <h1 style={{ fontWeight: 800, fontSize: 32, lineHeight: 1.14, letterSpacing: "-.025em", margin: 0, textAlign: "center" }}>
+            Welcome to Zuper! Let&rsquo;s transform how you run your business.
+          </h1>
+        </div>
+
+        <div style={{ padding: "32px 0 0" }}>
+          <img src="/zuper-hero.png" alt="" style={{ display: "block", width: "100%", height: "auto" }} />
+        </div>
+
+        <div style={{ padding: "36px 44px 0", display: "grid", gap: 18, fontSize: 16, lineHeight: 1.62, color: "#3F3F3F" }}>
+          <p style={{ margin: 0 }}>Hi Sam,</p>
+          <p style={{ margin: 0 }}>You&rsquo;re in! And we&rsquo;re genuinely excited about what&rsquo;s next, because this is the moment your roofing business starts running differently.</p>
+          <p style={{ margin: 0 }}>We know you&rsquo;re not starting from zero. Bring your customers, jobs, and history over with you, and Zuper will feel familiar fast.</p>
+          <p style={{ margin: 0 }}>This isn&rsquo;t a handoff to a support ticket queue. A real team is behind this, listening to what you need and moving quickly to get you there. You can set this up yourself, and we&rsquo;ll guide you along the way. If you ever get stuck, we&rsquo;re right here.</p>
+        </div>
+
+        <div style={{ margin: "30px 44px 0", borderRadius: 12 }}>
+          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: ".12em", color: T.brand, marginBottom: 18, fontWeight: 800 }}>
+            Here&rsquo;s what to expect
+          </div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {steps.map((label, index) => (
+              <div key={label} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <span style={emailStepDot}>{index + 1}</span>
+                <span style={{ fontSize: 15, lineHeight: 1.55, color: "#191919" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: "26px 44px 0" }}>
+          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.62, color: "#3F3F3F" }}>
+            Most of this is already done for you. You&rsquo;re mostly confirming, not building from scratch.
+          </p>
+        </div>
+
+        <div style={{ padding: "34px 44px 44px", textAlign: "center" }}>
+          <button onClick={onStart} style={emailCta}>Let&rsquo;s set up Zuper</button>
+          <div style={{ marginTop: 16, fontSize: 13, color: "#767676" }}>Takes about 10 minutes. No credit card required.</div>
+        </div>
+      </div>
+
+      <div style={{ width: 600, maxWidth: "100%", margin: "0 auto", padding: "28px 44px 0", boxSizing: "border-box", textAlign: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "6px 14px", fontSize: 13, color: "#767676", marginBottom: 16 }}>
+          <span>Help center</span><span>&middot;</span><span>Talk to your onboarding team</span><span>&middot;</span><span>Privacy policy</span>
+        </div>
+        <img src="/zuper-wordmark.png" alt="Zuper" style={{ height: 18, width: "auto", display: "inline-block", opacity: 0.55, marginBottom: 12 }} />
+        <div style={{ fontSize: 11, lineHeight: 1.7, color: "#9A9A9A" }}>
+          Zuper, Inc. &middot; The AI operating system for field service.<br />
+          You&rsquo;re receiving this because you created a Zuper account. <span style={{ textDecoration: "underline" }}>Unsubscribe</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 1: the CRM you run on today ──────────────────────────────────────
+function CrmScreen({ data, set, onBack, onNext }) {
+  const selected = BUSINESS_SYSTEMS.find((system) => system.id === data.currentSystem);
+  const connected = Boolean(data.currentSystem) && data.migrationConnected === data.currentSystem;
+  const ready = data.currentSystem === "Starting fresh" || connected;
+
+  return (
+    <Question
+      group="Work setup"
+      title="Which CRM do you run on today?"
+      subtitle="Connect it and Zuper will pull your customers, jobs, and setup across instead of starting empty."
+      onBack={onBack}
+    >
+      <div style={{ display: "grid", gap: 10 }}>
+        {(selected ? [selected] : BUSINESS_SYSTEMS).map((system) => {
+          const active = data.currentSystem === system.id;
+          const body = (
+            <>
+              <span style={systemLogoTile}>
+                {system.logo
+                  ? <img src={system.logo} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+                  : <Plus size={20} color="#6b7280" />}
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{system.label}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{system.note}</span>
+              </span>
+            </>
+          );
+          if (active) {
+            return (
+              <React.Fragment key={system.id}>
+                <div style={{ ...systemCard(true), cursor: "default" }}>
+                  {body}
+                  <button
+                    onClick={() => { set("currentSystem", ""); set("migrationConnected", ""); }}
+                    style={{ ...darkLink, whiteSpace: "nowrap" }}
+                  >
+                    Change platform
+                  </button>
+                </div>
+                {system.logo && (
+                  <MigrationCredentials
+                    system={system}
+                    connected={connected}
+                    onConnected={() => {
+                      set("migrationConnected", system.id);
+                      Object.entries(MIGRATION_PREFILL).forEach(([key, value]) => set(key, value));
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            );
+          }
+          return (
+            <button
+              key={system.id}
+              onClick={() => { set("currentSystem", system.id); set("migrationConnected", ""); }}
+              style={systemCard(false)}
+            >
+              {body}
+              <span style={radioMark(false)} />
+            </button>
+          );
+        })}
+      </div>
+
+      <Footer>
+        <Btn disabled={!ready} onClick={onNext} IconR={ArrowRight}>Continue</Btn>
+      </Footer>
+    </Question>
+  );
+}
+
+// ─── Step 2: the vendors and measurement tools alongside it ────────────────
+function VendorToolsScreen({ data, set, onBack, onNext }) {
+  const vendors = listOf(data.suppliers);
+  const measurement = listOf(data.measurementTools);
+
+  return (
+    <Question
+      group="Catalog and pricing"
+      title="What else do you work with?"
+      subtitle="Vendors set up your parts catalog, and your measurement tool feeds roof reports straight into estimates."
+      onBack={onBack}
+    >
+      <div style={sectionLabel}>Your vendors</div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {SUPPLIER_CATALOG.map((supplier) => (
+          <SupplierCard
+            key={supplier.id}
+            supplier={supplier}
+            selected={vendors.includes(supplier.id)}
+            onToggle={() => toggleList(vendors, supplier.id, (next) => set("suppliers", next))}
+          />
+        ))}
+      </div>
+
+      <div style={{ ...sectionLabel, marginTop: 28 }}>Your measurement tool</div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {MEASUREMENT_TOOLS.map((tool) => {
+          const on = measurement.includes(tool.id);
+          return (
+            <button
+              key={tool.id}
+              onClick={() => toggleList(measurement, tool.id, (next) => set("measurementTools", next))}
+              style={systemCard(on)}
+            >
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#f4f4f4" }}>{tool.id}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{tool.note}</span>
+              </span>
+              <span style={checkBox(on)}>{on && "✓"}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Footer>
+        <Btn onClick={onNext} IconR={ArrowRight}>Continue</Btn>
+      </Footer>
+    </Question>
+  );
+}
+
+// ─── Step 2: pull the data across, with a manual fallback for services ──────
+const MIGRATE_STEPS = ["Customers and contacts", "Jobs and job history", "Services and price list", "Users and teams"];
+
+function MigrateDataScreen({ data, set, onBack, onNext }) {
+  const migrating = isMigrating(data);
+  const [phase, setPhase] = useState(() => (migrating && !data.migrationFetched ? "fetching" : "done"));
+  const [step, setStep] = useState(() => (data.migrationFetched ? MIGRATE_STEPS.length : 0));
+  const services = listOf(data.services);
+  const source = data.currentSystem;
+  const autoFilled = migrating && data.migrationFetched;
+
+  useEffect(() => {
+    if (phase !== "fetching") return;
+    const timers = MIGRATE_STEPS.map((_, index) => setTimeout(() => setStep(index + 1), 420 * (index + 1)));
+    const done = setTimeout(() => { set("migrationFetched", true); setPhase("done"); }, 420 * MIGRATE_STEPS.length + 400);
+    return () => { timers.forEach(clearTimeout); clearTimeout(done); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const commitServices = (next) => {
+    set("services", next);
+    set("workType", inferWorkTypeFromSetup(next, data.insuranceMode));
+  };
+
+  if (phase === "fetching") {
+    return (
+      <Question group="Work setup" title={`Reading your ${source} setup`} subtitle="This runs once. Nothing in your existing system changes." onBack={onBack}>
+        <div style={darkPanel}>
+          <div style={{ display: "grid", gap: 12 }}>
+            {MIGRATE_STEPS.map((label, index) => {
+              const done = index < step;
+              return (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 11, opacity: done ? 1 : 0.45, transition: "opacity .3s ease" }}>
+                  {done ? <CheckCircle2 size={17} color="#5fd18b" style={{ flexShrink: 0 }} /> : <span style={fetchSpinner} />}
+                  <span style={{ color: done ? "#f1f1f1" : "#9a9a9a", fontSize: 14, fontWeight: 800 }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Question>
+    );
+  }
+
+  return (
+    <Question
+      group="Work setup"
+      title={migrating ? `What we read from ${source}` : "Tell us what you do"}
+      subtitle={migrating
+        ? "Zuper filled in what it could. Add or remove anything below — your records import later, once setup is done."
+        : "No system to read from, so pick the services you offer and Zuper will build your defaults."}
+      onBack={onBack}
+    >
+      <div style={darkPanel}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+          <div style={{ ...cardTitle, marginBottom: 0 }}>Services you provide</div>
+          {autoFilled && (
+            <span style={{ ...summaryChip, borderColor: "rgba(52,168,95,.45)", color: "#7ee2a2" }}>Auto-filled</span>
+          )}
+        </div>
+
+        <MultiSelectGroup
+          label=""
+          options={WEBSITE_SERVICE_OPTIONS}
+          selected={services}
+          onToggle={(value) => toggleList(services, value, commitServices)}
+        />
+
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {INSURANCE_MODES.map((mode) => (
+              <DarkOption
+                key={mode}
+                selected={data.insuranceMode === mode}
+                onClick={() => { set("insuranceMode", mode); set("workType", inferWorkTypeFromSetup(services, mode)); }}
+                title={mode}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Footer>
+        <Btn disabled={!services.length || !data.insuranceMode} onClick={onNext} IconR={ArrowRight}>Continue</Btn>
+      </Footer>
+    </Question>
+  );
+}
+
+// ─── Step 4: confirm who works here ────────────────────────────────────────
+function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
+  const teammates = listOf(data.teammates);
+  const categories = jobDefaultTreeFor(data, bucket);
+  const removeTeammate = (index) => set("teammates", teammates.filter((_, i) => i !== index));
+  const addTeammate = () => {
+    const email = textOf(data.invitedEmail).trim();
+    if (!email) return;
+    set("teammates", [...teammates, { email, role: data.invitedRole || "Sales" }]);
+    set("invitedEmail", "");
+  };
+
+  return (
+    <Question
+      group="People and delivery"
+      title="Confirm your team"
+      subtitle={`Zuper generated ${categories.length} job categories from your services. Confirm who should have access — you can change roles later in Settings.`}
+      onBack={onBack}
+    >
+      <div style={darkPanel}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", paddingBottom: 12, borderBottom: "1px solid #303030" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 850 }}>You</div>
+            <div style={{ color: "#9a9a9a", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {textOf(data.email) || "sam@mavenroof.com"}
+            </div>
+          </div>
+          <span style={{ ...summaryChip, borderColor: "#3a3a3a" }}>Admin</span>
+        </div>
+
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          {teammates.length === 0 && (
+            <div style={{ color: "#8f8f8f", fontSize: 13, fontWeight: 750 }}>No other users yet — add anyone who should have access.</div>
+          )}
+          {teammates.map((member, index) => (
+            <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center" }}>
+              <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{member.email}</div>
+              <span style={{ ...summaryChip, borderColor: "#333" }}>{member.role}</span>
+              <button onClick={() => removeTeammate(index)} style={darkMutedLink}>Remove</button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr", gap: 12, marginTop: 16 }} className="lh-grid-2">
+          <DarkField label="Email" value={data.invitedEmail} onChange={(v) => set("invitedEmail", v)} placeholder="teammate@roofingco.com" />
+          <label style={{ display: "block" }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#ddd", marginBottom: 8 }}>Role</div>
+            <select value={data.invitedRole} onChange={(e) => set("invitedRole", e.target.value)} style={darkInput}>
+              {INVITE_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+          </label>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Btn variant="secondary" disabled={!textOf(data.invitedEmail).trim()} onClick={addTeammate}>Add user</Btn>
+        </div>
+      </div>
+
+      <Footer><Btn onClick={onNext} IconR={ArrowRight}>Continue</Btn></Footer>
+    </Question>
+  );
+}
+
+// ─── Step 5: a sample proposal for Zuper to learn from (required) ──────────
+function ProposalSetupScreen({ data, set, onBack, onNext }) {
+  return (
+    <Question
+      group="Catalog and pricing"
+      title="Set up your proposal"
+      subtitle="Upload one proposal you have sent before. Zuper reads its structure, line items, and pricing to build your template."
+      onBack={onBack}
+    >
+      <div style={darkPanel}>
+        <label style={uploadZone}>
+          <UploadIcon />
+          <span>{data.proposalFileName || "Drop a PDF, DOCX, XLSX, or CSV file, or click to browse"}</span>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.xlsx,.xls,.csv"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              set("proposalFileName", file.name);
+              set("cpqFileName", file.name);
+              set("proposalPath", "Upload");
+              set("proposalUploaded", true);
+            }}
+          />
+        </label>
+
+        {data.proposalFileName ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}>
+            <CheckCircle2 size={16} color="#5fd18b" />
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: "#d8d8d8" }}>
+              Zuper will build your proposal template from this file.
+            </span>
+          </div>
+        ) : (
+          <div style={{ ...hintRow, marginTop: 14 }}>
+            <AlertTriangle size={15} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>Required — Zuper needs one example to build your proposal template.</span>
+          </div>
+        )}
+      </div>
+
+      <Footer>
+        <Btn disabled={!data.proposalFileName} onClick={onNext} IconR={ArrowRight}>
+          {data.proposalFileName ? "Continue" : "Upload a proposal to continue"}
+        </Btn>
+      </Footer>
+    </Question>
+  );
+}
+
+// ─── Step 4: card on file, optional, right before the product ───────────────
+function CardOnFileScreen({ data, set, onBack, onNext }) {
+  const [name, setName] = useState("");
+  const [number, setNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvc, setCvc] = useState("");
+  const ready = name.trim().length > 2 && number.replace(/\s/g, "").length >= 12 && expiry.trim().length >= 4 && cvc.trim().length >= 3;
+
+  if (data.cardAdded) {
+    return (
+      <Question group="Platforms" title="Card on file" subtitle="You are all set — we will not charge anything during your trial." onBack={onBack}>
+        <div style={{ ...darkPanel, borderColor: "rgba(52,168,95,.4)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <CheckCircle2 size={17} color="#5fd18b" />
+            <span style={{ fontSize: 14.5, fontWeight: 900, color: "#f1f1f1" }}>Card saved</span>
+          </div>
+          <div style={{ color: "#9a9a9a", fontSize: 13, marginTop: 8 }}>Billing starts only when your trial ends. Remove it any time in Settings.</div>
+        </div>
+        <Footer><Btn onClick={onNext} IconR={ArrowRight}>Continue</Btn></Footer>
+      </Question>
+    );
+  }
+
+  return (
+    <Question
+      group="Platforms"
+      title="Add a card on file"
+      subtitle="Optional. Nothing is charged during your trial — this just keeps your workspace running when it ends."
+      onBack={onBack}
+    >
+      <div style={darkPanel}>
+        <DarkField label="Name on card" value={name} onChange={setName} placeholder="Sam Rivera" />
+        <div style={{ marginTop: 12 }}>
+          <DarkField label="Card number" value={number} onChange={setNumber} placeholder="0000 0000 0000 0000" />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }} className="lh-grid-2">
+          <DarkField label="Expiry" value={expiry} onChange={setExpiry} placeholder="MM/YY" />
+          <DarkField label="CVC" value={cvc} onChange={setCvc} placeholder="123" />
+        </div>
+        <div style={{ ...hintRow, marginTop: 14 }}>
+          <Lightbulb size={15} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>Prototype — this form is a mockup and nothing is sent anywhere. Do not enter a real card.</span>
+        </div>
+      </div>
+
+      <Footer>
+        <button onClick={() => { set("cardSkipped", true); onNext(); }} style={darkLink}>Skip for now</button>
+        <Btn disabled={!ready} onClick={() => { set("cardAdded", true); set("cardSkipped", false); onNext(); }} IconR={ArrowRight}>
+          Save card
+        </Btn>
+      </Footer>
+    </Question>
   );
 }
 
@@ -2356,14 +2812,13 @@ function initialsFor(name) {
 
 function panelForStep(mode, step, data) {
   if (mode !== "wizard") return "work";
-  if (step === 2 || step === 3) return "work";
-  if (isMigrating(data)) return step === 4 ? "catalog" : "people";
-  if (step === 4) return "catalog";
-  if (step === 5) return "proposal";
-  if (step === 6) return "quoting";
-  if (step === 8) return "platforms";
-  if (step === 7 || step === 9) return "people";
-  if (listOf(data.services).length) return "work";
+  if (step === 0) return "work";
+  if (step === 1) return "catalog";
+  if (step === 2) return listOf(data.services).length ? "work" : "summary";
+  if (step === 3) return "people";
+  if (step === 4) return "proposal";
+  if (step === 5) return "platforms";
+  if (step === 6) return "catalog";
   return "summary";
 }
 
@@ -2500,6 +2955,10 @@ const loopPill = { borderRadius: 20, padding: "6px 10px", fontSize: 12, fontWeig
 const flowBox = { position: "relative", border: "1px solid #3b3b3b", background: "#252525", color: "#f1f1f1", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
 const miniRemove = { marginLeft: 8, border: "none", background: "#3a3a3a", color: "#ddd", borderRadius: 8, cursor: "pointer" };
 const hintRow = { display: "flex", alignItems: "flex-start", gap: 8, color: "#9a9a9a", fontSize: 13, lineHeight: 1.45, maxWidth: 520 };
+const sectionLabel = { fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 };
+const emailCard = { width: 600, maxWidth: "100%", margin: "0 auto", background: "#ffffff", borderRadius: 12, overflow: "hidden", boxShadow: "0 12px 40px rgba(25,25,25,.08)" };
+const emailStepDot = { flex: "0 0 24px", height: 24, borderRadius: 999, background: "#FD5000", color: "#fff", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
+const emailCta = { display: "inline-block", background: "#FD5000", color: "#fff", border: "none", fontWeight: 700, fontSize: 16, padding: "15px 34px", borderRadius: 8, cursor: "pointer" };
 const summaryChip = { display: "inline-flex", alignItems: "center", border: "1px solid #333", background: "#232323", color: "#e2e2e2", borderRadius: 20, padding: "6px 12px", fontSize: 12.5, fontWeight: 800 };
 const fetchSpinner = { width: 16, height: 16, borderRadius: "50%", border: "2px solid #333", borderTopColor: "#8f8f8f", animation: "lh-spin .7s linear infinite", flexShrink: 0, display: "inline-block" };
 const systemCard = (active) => ({ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 74, borderRadius: 12, border: `1px solid ${active ? "#e5e5e5" : "#303030"}`, background: active ? "#242424" : "#171717", padding: "12px 16px", cursor: "pointer", textAlign: "left" });
