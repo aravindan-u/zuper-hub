@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Copy, Lightbulb, Package, RefreshCcw } from "lucide-react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowUp, Copy, Lightbulb, Package, RefreshCcw, CreditCard, ShieldCheck, Sparkles, PartyPopper, Clock } from "lucide-react";
 import { WORK_TYPES, bucketForWorkType } from "./buckets.js";
+import { startMigration, completeOnboardingNoMigration } from "../migrationState.js";
 import {
   T, Btn, ProgressBar, LogoMark, SupportWidget, GlobalStyle,
   ArrowRight, ArrowLeft, CheckCircle2, Circle, Inbox, FileText, Users,
-  Receipt, Zap, X, Plus, LifeBuoy,
+  Receipt, Zap, X, Plus, LifeBuoy, Layers,
 } from "./ui.jsx";
 
 const HUBS = [
@@ -99,9 +100,8 @@ const MANUFACTURER_CATALOG = [
 ];
 const INVITE_ROLES = ["Sales", "Inspector", "Production", "Dispatcher", "Finance", "Admin"];
 const WEBSITE_SERVICE_OPTIONS = ["Roof replacement", "Roof repair", "Storm damage", "Commercial roofing", "Gutters", "Skylights"];
-// Order follows the onboarding stage plan: CRM + services, then products and
-// vendors, then users and teams, then data migration / platforms.
-const ONBOARDING_GROUPS = ["Work setup", "Catalog and pricing", "People and delivery", "Platforms"];
+// One pill per wizard step, in the order the user walks them.
+const ONBOARDING_GROUPS = ["Your CRM", "Tools", "Your data", "Team", "Proposal", "Billing"];
 const INSURANCE_MODES = ["Insurance work", "Non-insurance work", "Both"];
 const BUSINESS_HOURS = ["Weekdays, 8 AM-5 PM", "Weekdays, 7 AM-6 PM", "Monday-Saturday", "24/7 emergency coverage", "Set hours manually"];
 const TIME_OPTIONS = ["6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"];
@@ -128,8 +128,8 @@ const MIGRATION_PREFILL = {
   insuranceMode: PREFILL_PROFILE.insuranceMode,
   workType: PREFILL_PROFILE.workType,
   businessHours: PREFILL_PROFILE.businessHours,
-  suppliers: ["SRS Distribution", "ABC Supply"],
-  manufacturers: ["GAF", "CertainTeed"],
+  // Tools step (vendors + measurement) starts unselected — no preselection even
+  // when a CRM is connected, so the user makes those choices deliberately.
   proposalPath: "Template",
   proposalTemplate: "Insurance",
   integrations: ["QBO"],
@@ -229,6 +229,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
   const [handoff, setHandoff] = useState(null);
   const [playbook, setPlaybook] = useState(false);
   const [initialBehaviorPrompt, setInitialBehaviorPrompt] = useState(null);
+  const [curtainUp, setCurtainUp] = useState(false);
   const [leads, setLeads] = useState([]);
 
   const bucket = useMemo(() => bucketForWorkType(data.workType), [data.workType]);
@@ -247,6 +248,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
     setHandoff(null);
     setPlaybook(false);
     setInitialBehaviorPrompt(null);
+    setCurtainUp(false);
     setLeads([]);
   }, []);
 
@@ -274,6 +276,14 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
         <GlobalStyle />
         <style>{`
           @keyframes lh-spin { to { transform: rotate(360deg); } }
+          @keyframes lh-nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+          @keyframes lh-ring { 0% { transform: scale(.6); opacity: .55; } 100% { transform: scale(1.9); opacity: 0; } }
+          @keyframes lh-pop-in { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+          @keyframes lh-confetti { 0% { transform: translateY(-12vh) rotate(0deg); opacity: 0; } 12% { opacity: 1; } 100% { transform: translateY(112vh) rotate(720deg); opacity: 1; } }
+          @keyframes lh-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+          @keyframes lh-glow { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
+          @keyframes lh-bar { from { width: 0%; } }
+          @keyframes lh-sheen { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
           @media (max-width: 860px) {
             .lh-grid-2, .lh-product { grid-template-columns: 1fr !important; }
             .lh-shell { grid-template-columns: 1fr !important; }
@@ -287,7 +297,8 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
         {mode !== "product" && mode !== "welcome" && mode !== "email" && <ProgressBar pct={progressFor(mode, wizardStep, data)} />}
         {onExit && <ExitButton onClick={exit} />}
 
-      {mode === "email" && <WelcomeEmailScreen onStart={() => { setMode("wizard"); setWizardStep(0); }} />}
+      {mode === "email" && <WelcomeEmailScreen onStart={() => { setMode("wizard"); setWizardStep(0); setCurtainUp(false); }} />}
+      {mode === "wizard" && <WelcomeCurtain up={curtainUp} onOpen={() => setCurtainUp(true)} />}
       {mode === "welcome" && <WelcomeScreen onStart={() => { setMode("wizard"); setWizardStep(0); }} />}
       {mode === "hub" && (
         <HubPicker
@@ -329,7 +340,8 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
           bucket={bucket}
           connectionState={connectionState}
           setConnectionState={setConnectionState}
-          onComplete={(opts) => enterProduct(opts)}
+          onMigrate={() => { startMigration({ source: data.currentSystem }); exit(); }}
+          onHome={() => { completeOnboardingNoMigration(); exit(); }}
         />
       )}
       {mode === "product" && (
@@ -478,9 +490,10 @@ function MigrationReconnect({ data, set, connectionState, setConnectionState, so
   );
 }
 
-function LeadWizard({ step, setStep, data, set, bucket, onComplete }) {
+function LeadWizard({ step, setStep, data, set, bucket, onMigrate, onHome }) {
   // Flow after the welcome email link: tools in use -> migrate -> confirm ->
-  // card on file (optional) -> done.
+  // card on file (optional) -> done. The final success step hands off either
+  // to the data-migration tracker or straight to the homepage.
   const screens = [
     <CrmScreen data={data} set={set} onNext={() => setStep(1)} />,
     <VendorToolsScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
@@ -488,7 +501,12 @@ function LeadWizard({ step, setStep, data, set, bucket, onComplete }) {
     <TeamConfirmScreen data={data} set={set} bucket={bucket} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
     <ProposalSetupScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
     <CardOnFileScreen data={data} set={set} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
-    <RecapScreen data={data} bucket={bucket} onBack={() => setStep(5)} onCreateJob={() => onComplete({ behaviorPrompt: "technician" })} />,
+    <SuccessOverlay
+      data={data}
+      bucket={bucket}
+      onMigrate={onMigrate}
+      onHome={onHome}
+    />,
   ];
   const safeStep = Number.isInteger(step) && step >= 0 && step < screens.length ? step : 0;
   return screens[safeStep];
@@ -1196,6 +1214,153 @@ function WelcomeEmailScreen({ onStart }) {
   );
 }
 
+// Curtain over the wizard — swipe, scroll, or click to reveal the setup beneath.
+function WelcomeCurtain({ up, onOpen }) {
+  const start = useRef(null);
+  return (
+    <div
+      onClick={onOpen}
+      onWheel={(e) => { if (e.deltaY > 12) onOpen(); }}
+      onTouchStart={(e) => { start.current = e.touches[0].clientY; }}
+      onTouchMove={(e) => { if (start.current !== null && start.current - e.touches[0].clientY > 40) onOpen(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 90,
+        transform: up ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform .8s cubic-bezier(.76,0,.24,1)",
+        pointerEvents: up ? "none" : "auto",
+        cursor: "pointer", overflow: "hidden",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      }}
+      aria-hidden={up}
+    >
+      <img src="/zuper-hero.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 58%" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,6,3,.58) 0%, rgba(10,6,3,.72) 60%, rgba(10,6,3,.9) 100%)" }} />
+
+      <div style={{ position: "relative", textAlign: "center", padding: "0 24px", maxWidth: 680 }}>
+        <div style={{ color: "#FFD2BC", fontSize: 12.5, fontWeight: 850, letterSpacing: ".16em", textTransform: "uppercase" }}>
+          Maven Roofing
+        </div>
+        <h1 style={{ fontSize: "clamp(40px, 6.4vw, 68px)", lineHeight: 1.04, letterSpacing: "-.035em", fontWeight: 950, color: "#fff", margin: "18px 0 0" }}>
+          Welcome to Zuper
+        </h1>
+        <p style={{ fontSize: 18, lineHeight: 1.5, color: "rgba(255,255,255,.82)", margin: "20px auto 0", maxWidth: 520 }}>
+          Ten minutes from here to a workspace that already knows your business.
+        </p>
+        <div style={{ marginTop: 38 }}>
+          <Btn size="lg" onClick={onOpen}>Begin setup</Btn>
+        </div>
+      </div>
+
+      <div style={{ position: "absolute", bottom: 38, display: "grid", justifyItems: "center", gap: 8, color: "rgba(255,255,255,.7)", fontSize: 13, fontWeight: 800 }}>
+        <ArrowUp size={18} style={{ animation: "lh-nudge 1.6s ease-in-out infinite" }} />
+        Swipe up to start
+      </div>
+    </div>
+  );
+}
+
+// Confetti pieces for the success screen — deterministic so there's no random() call.
+const CONFETTI = Array.from({ length: 26 }, (_, i) => {
+  const palette = ["#FD5000", "#1A7A3C", "#1A6E9E", "#B4690E", "#6B1AAA", "#FF8A4C"];
+  return {
+    left: (i * 37 + 6) % 100,
+    color: palette[i % palette.length],
+    delay: (i % 9) * 0.28,
+    duration: 3.4 + (i % 5) * 0.55,
+    size: 7 + (i % 4) * 3,
+    round: i % 3 === 0,
+  };
+});
+
+// Final step — a rich, celebratory full-screen success moment.
+function SuccessOverlay({ data, bucket, onMigrate, onHome }) {
+  const categories = jobDefaultTreeFor(data, bucket);
+  const teammates = listOf(data.teammates);
+  const services = listOf(data.services);
+  const companyName = data.companyName || "your workspace";
+  const stats = [
+    { icon: Layers, value: categories.length, label: categories.length === 1 ? "Job category" : "Job categories" },
+    { icon: Sparkles, value: services.length, label: services.length === 1 ? "Service" : "Services" },
+    { icon: Package, value: listOf(data.suppliers).length, label: "Vendors" },
+    { icon: Users, value: teammates.length + 1, label: "Users" },
+  ];
+  const setupHighlights = [
+    { icon: RefreshCcw, text: data.currentSystem && data.currentSystem !== "Starting fresh" ? `${data.currentSystem} connected and ready to import` : "Fresh workspace configured" },
+    { icon: Layers, text: `${categories.length} job ${categories.length === 1 ? "category" : "categories"} with statuses generated` },
+    { icon: FileText, text: data.proposalPath === "Template" ? `${data.proposalTemplate || "Starter"} proposal template ready` : "Proposal starting point set" },
+    { icon: Users, text: `You${teammates.length ? ` + ${teammates.length} teammate${teammates.length === 1 ? "" : "s"}` : ""} on the account` },
+  ];
+  return (
+    <div style={successBackdrop}>
+      {/* Roofing hero photo behind everything, with a scrim so the card stays legible */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/success-hero.png)", backgroundSize: "cover", backgroundPosition: "center 62%" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(8,6,4,.62) 0%, rgba(8,6,4,.5) 42%, rgba(8,6,4,.78) 100%)" }} />
+
+      {/* Confetti + glow field behind the card */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", top: "-10%", left: "50%", width: 720, height: 720, transform: "translateX(-50%)", background: "radial-gradient(closest-side, rgba(253,80,0,.28), rgba(253,80,0,0))", animation: "lh-glow 4s ease-in-out infinite" }} />
+        {CONFETTI.map((c, i) => (
+          <span key={i} style={{
+            position: "absolute", top: "-6vh", left: `${c.left}%`, width: c.size, height: c.round ? c.size : c.size * 1.6,
+            background: c.color, borderRadius: c.round ? "50%" : 2, opacity: 0,
+            animation: `lh-confetti ${c.duration}s linear ${c.delay}s infinite`,
+          }} />
+        ))}
+      </div>
+
+      <div className="su" style={successCard}>
+        <div style={{ position: "relative", width: 84, height: 84, margin: "0 auto" }}>
+          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${T.green}`, animation: "lh-ring 1.9s ease-out infinite" }} />
+          <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid ${T.green}`, animation: "lh-ring 1.9s ease-out .7s infinite" }} />
+          <span style={{ ...successMark, width: 84, height: 84, animation: "lh-pop-in .6s cubic-bezier(.34,1.56,.64,1) both", boxShadow: "0 12px 30px rgba(26,122,60,.35)" }}>
+            <CheckCircle2 size={40} strokeWidth={2.4} />
+          </span>
+        </div>
+
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, margin: "22px 0 0", padding: "6px 13px", borderRadius: 999, background: T.brandBg, color: T.brand, fontSize: 12.5, fontWeight: 900, letterSpacing: ".02em" }}>
+          <PartyPopper size={14} /> Your workspace is ready
+        </div>
+        <h2 style={{ fontSize: 30, fontWeight: 950, letterSpacing: "-.025em", color: T.text, margin: "14px 0 0" }}>
+          You&rsquo;re all set{data.firstName ? `, ${data.firstName}` : ""}!
+        </h2>
+        <p style={{ fontSize: 15.5, lineHeight: 1.55, color: T.textSec, margin: "10px auto 0", maxWidth: 420 }}>
+          {companyName} is configured and waiting. Bring your records across now, or head straight in and do it later.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, margin: "26px 0 22px" }}>
+          {stats.map(({ icon: StatIcon, value, label }, i) => (
+            <div key={label} style={{ ...successStat, animation: `lh-rise .5s ease ${0.15 + i * 0.08}s both` }}>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: T.brandBg, color: T.brand, marginBottom: 8 }}>
+                <StatIcon size={15} />
+              </span>
+              <div style={{ fontSize: 22, fontWeight: 950, color: T.text, lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: T.textMut, marginTop: 5 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "left", background: "#FCFBF9", border: `1px solid ${T.border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 22 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", color: T.textMut, marginBottom: 10 }}>What we set up</div>
+          <div style={{ display: "grid", gap: 9 }}>
+            {setupHighlights.map(({ icon: Hi, text }, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, animation: `lh-rise .5s ease ${0.35 + i * 0.07}s both` }}>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 999, background: T.greenBg, color: T.green, flexShrink: 0 }}>
+                  <Hi size={14} />
+                </span>
+                <span style={{ fontSize: 13.5, fontWeight: 750, color: T.text }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 10 }}>
+          <Btn size="lg" full onClick={onMigrate}>Take me to home&nbsp; 🚀</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Step 1: the CRM you run on today ──────────────────────────────────────
 function CrmScreen({ data, set, onBack, onNext }) {
   const selected = BUSINESS_SYSTEMS.find((system) => system.id === data.currentSystem);
@@ -1204,7 +1369,7 @@ function CrmScreen({ data, set, onBack, onNext }) {
 
   return (
     <Question
-      group="Work setup"
+      group="Your CRM"
       title="Which CRM do you run on today?"
       subtitle="Connect it and Zuper will pull your customers, jobs, and setup across instead of starting empty."
       onBack={onBack}
@@ -1277,7 +1442,7 @@ function VendorToolsScreen({ data, set, onBack, onNext }) {
 
   return (
     <Question
-      group="Catalog and pricing"
+      group="Tools"
       title="What else do you work with?"
       subtitle="Vendors set up your parts catalog, and your measurement tool feeds roof reports straight into estimates."
       onBack={onBack}
@@ -1345,9 +1510,24 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
     set("workType", inferWorkTypeFromSetup(next, data.insuranceMode));
   };
 
+  // "Add more" reveals a free-text field and renames this step to "Services".
+  const [renamed, setRenamed] = useState(false);
+  const [addingService, setAddingService] = useState(false);
+  const [draft, setDraft] = useState("");
+  const customServices = services.filter((s) => !WEBSITE_SERVICE_OPTIONS.includes(s));
+  const addCustomService = () => {
+    const value = draft.trim();
+    if (!value) return;
+    if (!services.includes(value)) commitServices([...services, value]);
+    setDraft("");
+  };
+  const openAddMore = () => { setAddingService(true); setRenamed(true); };
+  const groupLabel = renamed ? "Services" : "Your data";
+  const groupList = renamed ? ONBOARDING_GROUPS.map((g) => (g === "Your data" ? "Services" : g)) : ONBOARDING_GROUPS;
+
   if (phase === "fetching") {
     return (
-      <Question group="Work setup" title={`Reading your ${source} setup`} subtitle="This runs once. Nothing in your existing system changes." onBack={onBack}>
+      <Question group="Your data" title={`Reading your ${source} setup`} subtitle="This runs once. Nothing in your existing system changes." onBack={onBack}>
         <div style={darkPanel}>
           <div style={{ display: "grid", gap: 12 }}>
             {MIGRATE_STEPS.map((label, index) => {
@@ -1367,7 +1547,8 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
 
   return (
     <Question
-      group="Work setup"
+      group={groupLabel}
+      groups={groupList}
       title={migrating ? `What we read from ${source}` : "Tell us what you do"}
       subtitle={migrating
         ? "Zuper filled in what it could. Add or remove anything below — your records import later, once setup is done."
@@ -1382,12 +1563,37 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
           )}
         </div>
 
-        <MultiSelectGroup
-          label=""
-          options={WEBSITE_SERVICE_OPTIONS}
-          selected={services}
-          onToggle={(value) => toggleList(services, value, commitServices)}
-        />
+        <div style={{ marginTop: 18 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {[...WEBSITE_SERVICE_OPTIONS, ...customServices].map((option) => {
+              const active = services.includes(option);
+              return (
+                <button key={option} onClick={() => toggleList(services, option, commitServices)} style={chipButton(active)}>
+                  <span style={checkBox(active)}>{active && "✓"}</span>{option}
+                </button>
+              );
+            })}
+            {!addingService && (
+              <button onClick={openAddMore} style={{ ...chipButton(false), borderStyle: "dashed", color: "#dcdcdc" }}>
+                <Plus size={15} style={{ marginRight: 2 }} />Add more
+              </button>
+            )}
+          </div>
+
+          {addingService && (
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <input
+                value={draft}
+                autoFocus
+                placeholder="Type a service, e.g. Solar install"
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomService(); } }}
+                style={{ ...darkInput, flex: 1 }}
+              />
+              <Btn variant="secondary" onClick={addCustomService}>Add</Btn>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
@@ -1411,6 +1617,7 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
   );
 }
 
+
 // ─── Step 4: confirm who works here ────────────────────────────────────────
 function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
   const teammates = listOf(data.teammates);
@@ -1425,7 +1632,7 @@ function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
 
   return (
     <Question
-      group="People and delivery"
+      group="Team"
       title="Confirm your team"
       subtitle={`Zuper generated ${categories.length} job categories from your services. Confirm who should have access — you can change roles later in Settings.`}
       onBack={onBack}
@@ -1477,7 +1684,7 @@ function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
 function ProposalSetupScreen({ data, set, onBack, onNext }) {
   return (
     <Question
-      group="Catalog and pricing"
+      group="Proposal"
       title="Set up your proposal"
       subtitle="Upload one proposal you have sent before. Zuper reads its structure, line items, and pricing to build your template."
       onBack={onBack}
@@ -1535,7 +1742,7 @@ function CardOnFileScreen({ data, set, onBack, onNext }) {
 
   if (data.cardAdded) {
     return (
-      <Question group="Platforms" title="Card on file" subtitle="You are all set — we will not charge anything during your trial." onBack={onBack}>
+      <Question group="Billing" title="Card on file" subtitle="You are all set — we will not charge anything during your trial." onBack={onBack}>
         <div style={{ ...darkPanel, borderColor: "rgba(52,168,95,.4)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <CheckCircle2 size={17} color="#5fd18b" />
@@ -1550,7 +1757,7 @@ function CardOnFileScreen({ data, set, onBack, onNext }) {
 
   return (
     <Question
-      group="Platforms"
+      group="Billing"
       title="Add a card on file"
       subtitle="Optional. Nothing is charged during your trial — this just keeps your workspace running when it ends."
       onBack={onBack}
@@ -2120,11 +2327,11 @@ function CenteredShell({ title, subtitle, children }) {
   );
 }
 
-function Question({ title, subtitle, onBack, group, children }) {
+function Question({ title, subtitle, onBack, group, groups, children }) {
   return (
     <ShellCard width={520}>
       {onBack && <Back onClick={onBack} />}
-      {group && <GroupHeader active={group} />}
+      {group && <GroupHeader active={group} groups={groups} />}
       <h1 style={h1}>{title}</h1>
       {subtitle && <p style={p}>{subtitle}</p>}
       <div style={{ marginTop: 24 }}>{children}</div>
@@ -2132,10 +2339,10 @@ function Question({ title, subtitle, onBack, group, children }) {
   );
 }
 
-function GroupHeader({ active }) {
+function GroupHeader({ active, groups = ONBOARDING_GROUPS }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 20 }}>
-      {ONBOARDING_GROUPS.map((group) => {
+      {groups.map((group) => {
         const selected = group === active;
         return (
           <span key={group} style={groupPill(selected)}>
@@ -2305,110 +2512,311 @@ function SkeletonCircle({ size = 36, radius = "50%" }) {
   return <span style={{ width: size, height: size, borderRadius: radius, background: "#242424", border: "1px solid #303030", flexShrink: 0 }} />;
 }
 
+// ─── Right pane: only what the current step touches, drawn as real product UI ──
 function OnboardingPreview() {
-  const { data, bucket, migration, selectedHub, wizardStep, mode } = useContext(PreviewContext);
-  const services = listOf(data.services);
-  const materials = listOf(data.materials);
-  const manufacturers = listOf(data.manufacturers);
-  const integrations = listOf(data.integrations);
-  const workflow = listOf(data.workflow);
-  const fullName = [data.firstName, data.lastName].filter(Boolean).join(" ");
-  const companyName = data.companyName;
-  const hub = selectedHub ? HUBS.find((item) => item.id === selectedHub) : null;
-  const flow = workflow.length ? workflow : data.workType ? workflowFor(bucket || bucketForWorkType(data.workType), data) : [];
-  const products = data.currentSystem && data.currentSystem !== "Starting fresh"
-    ? [`From ${data.currentSystem}`, "Products", "Pricing"]
-    : [...materials, ...manufacturers].filter(Boolean).slice(0, 4);
-  const setupChips = [
-    ...services,
-    data.insuranceMode,
-    businessHoursLabel(data),
-    ...products,
-    data.cpqFileName ? `Intelligent quoting: ${data.cpqFileName}` : data.cpqSkipped ? "Intelligent quoting later" : "",
-    ...integrations,
-    data.communicationPlatform,
-  ].filter(Boolean).slice(0, 9);
-  const proposal = data.proposalPath === "Upload" ? "Uploaded proposal" : data.proposalPath === "Template" ? `${data.proposalTemplate} proposal` : "Proposal not added";
-  const workSetupReady = Boolean(services.length && data.insuranceMode);
-  const previewPanel = panelForStep(mode, wizardStep, data);
-  const previewRows = [
-    { label: "Owner", value: fullName, tag: data.role },
-    { label: "Work setup", value: services[0] || (data.workType ? bucket?.label : ""), tag: data.insuranceMode || businessHoursLabel(data) },
-    { label: "Platforms", value: integrations.join(", ") || data.communicationPlatform || data.sourceName || data.followup, tag: data.costPerLead ? `$${data.costPerLead}/lead` : data.currentSystem },
-    { label: "Workflow", value: flow.length ? "Generated defaults" : "", tag: flow.length ? `${flow.length} stages` : "" },
-  ];
+  const { data, bucket, wizardStep, mode } = useContext(PreviewContext);
+  if (mode !== "wizard") return <div className="lh-shell-preview" style={previewShell} />;
+
+  const connected = isMigrating(data) && data.migrationConnected === data.currentSystem;
+  let body;
+  if (wizardStep === 0) {
+    // CRM step: before connecting, pitch the value; after connecting, confirm the
+    // connection (no fake customer record is pulled into the preview).
+    body = connected ? <CrmConnectedPreview source={data.currentSystem} /> : <CrmPitchPreview />;
+  } else if (wizardStep === 5) {
+    // Card-on-file step: a marketing poster for seamless payments, not a job record.
+    body = <CardPitchPreview />;
+  } else {
+    body = <JobPreview step={wizardStep} data={data} bucket={bucket} connected={connected} />;
+  }
+
+  return <div className="lh-shell-preview" style={previewShell}>{body}</div>;
+}
+
+// Step 1, after connecting — confirmation that the CRM is linked and syncing.
+function CrmConnectedPreview({ source }) {
+  const system = BUSINESS_SYSTEMS.find((s) => s.id === source);
+  const imports = system?.imports || [["1,284", "Contacts"], ["342", "Jobs"], ["96", "Documents"]];
+  const brings = system?.brings || ["Contacts and lead sources", "Job stages and statuses", "Estimates and attached documents"];
   return (
-    <div className="lh-shell-preview" style={{ position: "relative", minHeight: 760, background: "linear-gradient(90deg, #1e1e1e, #111)", borderLeft: "1px solid #242424", overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: "22%", top: 170, width: 620, height: 620, borderRadius: 18, background: "#080808", border: "1px solid #1f1f1f", opacity: .86 }}>
-        <div style={{ height: 64, borderBottom: "1px solid #1d1d1d", display: "flex", alignItems: "center", gap: 14, padding: "0 24px" }}>
-          {companyName || data.logo ? <LogoMark name={companyName} src={data.logo} size={36} radius={10} /> : <SkeletonCircle size={36} radius={10} />}
-          <div style={{ minWidth: 0 }}>
-            <PreviewText value={companyName} width={190} size={18} />
-            <PreviewText value={hub?.label || ""} width={82} size={12} dim />
-          </div>
-          <span style={{ marginLeft: "auto", color: "#111", background: "#eee", borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 900 }}>Live preview</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", height: "calc(100% - 64px)" }}>
-          <div style={{ borderRight: "1px solid #1d1d1d", paddingTop: 18, display: "grid", justifyItems: "center", alignContent: "start", gap: 18 }}>
-            {[Inbox, FileText, Users, Receipt].map((IconComp, i) => <IconComp key={i} size={20} color={i === 0 ? "#eee" : "#5f5f5f"} />)}
-          </div>
-          <div>
-            <div style={{ padding: 18, borderBottom: "1px solid #1d1d1d" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "#151515", border: "1px solid #222", padding: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: fullName ? "#2b2b2b" : "#202020", color: "#eee", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>{fullName ? fullName[0] : ""}</div>
-                <div style={{ minWidth: 0 }}>
-                  <PreviewText value={fullName} width={150} size={14} />
-                  <PreviewText value={data.role} width={90} size={12} dim />
-                </div>
-              </div>
-            </div>
-            {previewRows.map((row, index) => (
-              <div key={row.label} style={{ padding: "18px 22px", borderBottom: "1px solid #1d1d1d" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: index === 0 ? T.brand : "#2a2a2a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 }}>{row.label.slice(0, 2).toUpperCase()}</div>
-                  <div style={{ flex: 1 }}>
-                    <PreviewText value={row.value} width={180 - index * 18} size={14} />
-                    <div style={{ color: "#777", fontSize: 12 }}>{row.label}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  {row.tag ? <span style={{ borderRadius: 20, background: index % 2 ? "#ffe7a3" : "#ead4ff", color: "#111", padding: "4px 9px", fontSize: 11, fontWeight: 900 }}>{row.tag}</span> : <span style={{ ...skeletonLine(64), height: 20 }} />}
-                </div>
-              </div>
-            ))}
-            <div style={{ padding: "18px 22px" }}>
-              {previewPanel === "calendar" ? (
-                <CalendarPreview data={data} />
-              ) : previewPanel === "work" && workSetupReady ? (
-                <DefaultsTreePreview data={data} bucket={bucket} />
-              ) : previewPanel === "proposal" ? (
-                <ProposalStylePreview data={data} products={products} proposal={proposal} />
-              ) : previewPanel === "quoting" ? (
-                <IntelligentQuotingPreview data={data} products={products} />
-              ) : previewPanel === "catalog" ? (
-                <CatalogPreview data={data} products={products} proposal={proposal} />
-              ) : previewPanel === "platforms" ? (
-                <PlatformsPreview data={data} integrations={integrations} />
-              ) : previewPanel === "people" ? (
-                <PeoplePreview data={data} />
-              ) : (
-                <>
-                  <div style={{ color: "#777", fontSize: 12, fontWeight: 850, textTransform: "uppercase", marginBottom: 10 }}>Generated setup</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {setupChips.length ? setupChips.map((item) => <span key={item} style={previewChip}>{item}</span>) : <span style={{ ...skeletonLine(92), height: 24 }} />}
-                    {data.proposalPath ? <span style={previewChip}>{proposal}</span> : <span style={{ ...skeletonLine(110), height: 24 }} />}
-                    {listOf(data.teammates).map((member) => <span key={member.email} style={previewChip}>{member.role}: {member.email}</span>)}
-                    {migration?.complete && <span style={previewChip}>Migrated leads</span>}
-                  </div>
-                </>
-              )}
-            </div>
+    <div style={{ padding: "56px 46px", maxWidth: 560, width: "100%" }}>
+      <div style={pitchEyebrow}>Connected</div>
+      <h2 style={{ ...pitchHeadline, fontSize: 30 }}>
+        {source || "Your CRM"} is<br />connected.
+      </h2>
+      <p style={pitchBody}>
+        Zuper is linked to {source || "your CRM"} and ready to bring everything across when your
+        setup is done — nothing to type twice.
+      </p>
+
+      <div style={{ ...pitchCard, marginTop: 30, alignItems: "center", gap: 14 }}>
+        <span style={{ ...systemLogoTile, width: 52, height: 52 }}>
+          {system?.logo
+            ? <img src={system.logo} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+            : <RefreshCcw size={20} color={T.brand} />}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#111" }}>{source || "CRM"}</div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 800, color: T.green, marginTop: 3 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.green, animation: "lh-glow 1.6s ease-in-out infinite" }} />
+            Connected · read-only
           </div>
         </div>
+        <CheckCircle2 size={22} color={T.green} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginTop: 12 }}>
+        {imports.map(([value, label]) => (
+          <div key={label} style={{ background: "#fff", border: "1px solid #E7E3DC", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+            <div style={{ fontSize: 19, fontWeight: 950, color: "#111", lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", marginTop: 5 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gap: 9, marginTop: 18 }}>
+        {brings.map((line) => (
+          <div key={line} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, fontWeight: 700, color: "#374151" }}>
+            <CheckCircle2 size={15} color={T.green} style={{ flexShrink: 0 }} /> {line}
+          </div>
+        ))}
+      </div>
+
+      <div style={pitchFooter}>
+        <CheckCircle2 size={15} color={T.green} style={{ flexShrink: 0 }} />
+        <span>Read-only. Nothing in {source || "your current system"} changes.</span>
       </div>
     </div>
   );
 }
+
+// Step 6 (card on file) — a marketing poster for what a card unlocks.
+function CardPitchPreview() {
+  const perks = [
+    { icon: Zap, title: "Seamless payment", body: "Trial rolls into paid with zero interruption." },
+    { icon: RefreshCcw, title: "Never stops running", body: "No lockouts, no re-entry — your workspace stays on." },
+    { icon: ShieldCheck, title: "Secure and PCI-safe", body: "Encrypted, tokenized, and stored by our processor." },
+    { icon: Clock, title: "Nothing charged today", body: "Billing only begins the day your trial ends." },
+  ];
+  return (
+    <div style={{ position: "relative", padding: "52px 46px", maxWidth: 560, width: "100%", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: -60, right: -60, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(closest-side, rgba(253,80,0,.16), rgba(253,80,0,0))" }} />
+      <div style={pitchEyebrow}>Uninterrupted payments</div>
+      <h2 style={pitchHeadline}>
+        Don&rsquo;t let your<br />business stop for<br />anything.
+      </h2>
+      <p style={pitchBody}>
+        Add a card on file and the day your trial ends, Zuper keeps running — jobs, invoices,
+        and crews, all without a single pause.
+      </p>
+
+      {/* A polished mock card */}
+      <div style={{ position: "relative", marginTop: 30, borderRadius: 18, padding: "22px 22px 20px", color: "#fff", background: `linear-gradient(135deg, ${T.brand}, ${T.brandDark})`, boxShadow: "0 20px 45px rgba(213,68,0,.32)", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 90, background: "linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent)", animation: "lh-sheen 2.8s ease-in-out infinite" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <CreditCard size={26} />
+          <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: ".08em", opacity: .95 }}>ZUPER</span>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: ".14em", marginTop: 26 }}>•••• •••• •••• 4242</div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, fontSize: 12, fontWeight: 700, opacity: .9 }}>
+          <span>Your Business LLC</span>
+          <span>ACTIVE</span>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
+        {perks.map(({ icon: PerkIcon, title, body }) => (
+          <div key={title} style={pitchCard}>
+            <span style={pitchIcon}><PerkIcon size={17} /></span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 900, color: "#111" }}>{title}</div>
+              <div style={{ fontSize: 13, fontWeight: 650, color: "#6B7280", marginTop: 2 }}>{body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={pitchFooter}>
+        <ShieldCheck size={15} color={T.green} style={{ flexShrink: 0 }} />
+        <span>Optional. Cancel anytime before your trial ends.</span>
+      </div>
+    </div>
+  );
+}
+
+// Step 1, before connecting — a poster for what a CRM connection buys you.
+function CrmPitchPreview() {
+  const wins = [
+    { icon: Users, title: "Customers and contacts", body: "Every record, with history intact." },
+    { icon: FileText, title: "Jobs and documents", body: "Estimates, photos, and claim files." },
+    { icon: Package, title: "Price list and vendors", body: "Your catalog, ready to quote from." },
+    { icon: RefreshCcw, title: "Stages and statuses", body: "Your workflow, rebuilt in Zuper." },
+  ];
+  return (
+    <div style={{ padding: "56px 46px", maxWidth: 560 }}>
+      <div style={pitchEyebrow}>Bring it with you</div>
+      <h2 style={pitchHeadline}>
+        Don&rsquo;t rebuild<br />what you already have.
+      </h2>
+      <p style={pitchBody}>
+        Connect the system you run on today and Zuper reads your setup, so you spend this
+        onboarding confirming — not typing.
+      </p>
+
+      <div style={{ display: "grid", gap: 10, marginTop: 32 }}>
+        {wins.map(({ icon: WinIcon, title, body }) => (
+          <div key={title} style={pitchCard}>
+            <span style={pitchIcon}><WinIcon size={17} /></span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 900, color: "#111" }}>{title}</div>
+              <div style={{ fontSize: 13, fontWeight: 650, color: "#6B7280", marginTop: 2 }}>{body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={pitchFooter}>
+        <CheckCircle2 size={15} color={T.green} style={{ flexShrink: 0 }} />
+        <span>Read-only. Nothing in your current system changes.</span>
+      </div>
+    </div>
+  );
+}
+
+// Steps 1–7 after connecting — the job record, showing only this step's additions.
+function JobPreview({ step, data, bucket, connected }) {
+  const services = listOf(data.services);
+  const suppliers = listOf(data.suppliers);
+  const measurement = listOf(data.measurementTools).filter((tool) => tool !== "None yet");
+  const teammates = listOf(data.teammates);
+  const categories = jobDefaultTreeFor(data, bucket);
+  const source = data.currentSystem;
+
+  const panels = {
+    0: {
+      caption: `Pulled from ${source}`,
+      title: "Customer",
+      rows: [
+        ["Customer", "Craig Calzoni"],
+        ["Service address", "2847 Boulevard, Los Angeles, CA"],
+        ["Lead source", source],
+        ["Status", "New"],
+      ],
+    },
+    1: {
+      caption: "Materials and measurement",
+      title: "Materials & PO",
+      rows: [
+        ["Vendors", suppliers.join(", ") || "None connected"],
+        ["Measurement", measurement.join(", ") || "Manual take-off"],
+      ],
+      chips: [...suppliers, ...measurement],
+    },
+    2: {
+      caption: "Generated from your services",
+      title: "Job details",
+      rows: [
+        ["Job type", services[0] || "Not set"],
+        ["Coverage", data.insuranceMode || "Not set"],
+        ["Categories", `${categories.length} generated`],
+      ],
+      chips: categories.map((item) => item.category),
+    },
+    3: {
+      caption: "From your team",
+      title: "Assignees",
+      people: [
+        { name: "You", role: "Admin" },
+        ...teammates.map((member) => ({ name: member.email.split("@")[0], role: member.role })),
+      ],
+    },
+    4: {
+      caption: "Built from your proposal",
+      title: "Finance",
+      highlights: [["Job value", "$10,000"], ["Job profit", "$1,000"]],
+      rows: [["Template", data.proposalFileName || "Not uploaded yet"]],
+    },
+    5: {
+      caption: "Billing",
+      title: "Subscription",
+      rows: [
+        ["Plan", "Zuper trial"],
+        ["Card on file", data.cardAdded ? "Added" : data.cardSkipped ? "Skipped for now" : "Not added"],
+        ["Charges today", "None"],
+      ],
+    },
+  };
+  const panel = panels[step] || panels[5];
+
+  return (
+    <div style={{ padding: "38px 34px", width: "100%", maxWidth: 560 }}>
+      {/* Job header, so every step reads as part of one real record */}
+      <div style={jobCard}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: "1px solid #EEF0F2" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: "#9CA3AF" }}>Jobs</span>
+          <span style={{ color: "#D1D5DB" }}>›</span>
+          <span style={{ fontSize: 13, fontWeight: 850, color: "#111", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            #JN-245 · Roof Replacement
+          </span>
+          <span style={{ marginLeft: "auto", ...jobStatusChip }}>New</span>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          <div style={jobCaption}>{panel.caption}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 900, color: "#111", marginTop: 4, marginBottom: 14 }}>{panel.title}</div>
+
+          {panel.highlights && (
+            <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+              {panel.highlights.map(([label, value]) => (
+                <div key={label} style={jobHighlight}>
+                  <div style={{ fontSize: 11.5, fontWeight: 800, color: "#6B7280" }}>{label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 950, color: "#111", marginTop: 4 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {panel.rows && (
+            <div style={{ display: "grid", gap: 11 }}>
+              {panel.rows.map(([label, value]) => (
+                <div key={label} style={{ display: "grid", gridTemplateColumns: "128px 1fr", gap: 12, alignItems: "start" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#6B7280" }}>{label}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 850, color: "#111", wordBreak: "break-word" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {panel.people && (
+            <div style={{ display: "grid", gap: 9 }}>
+              {panel.people.map((person, index) => (
+                <div key={`${person.name}-${index}`} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ ...jobAvatar, background: index === 0 ? T.brand : "#EEF0F2", color: index === 0 ? "#fff" : "#4B5563" }}>
+                    {person.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 13.5, fontWeight: 850, color: "#111", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{person.name}</span>
+                  <span style={jobRoleChip}>{person.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {panel.chips && panel.chips.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 14 }}>
+              {panel.chips.map((chip) => <span key={chip} style={jobChip}>{chip}</span>)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, color: "#8a8a8a", fontSize: 12.5, fontWeight: 750 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? T.green : "#9CA3AF" }} />
+        {connected ? `Live preview · updating from ${source}` : "Live preview"}
+      </div>
+    </div>
+  );
+}
+
 
 function DefaultsTreePreview({ data, bucket }) {
   const tree = jobDefaultTreeFor(data, bucket);
@@ -2959,6 +3367,25 @@ const sectionLabel = { fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBo
 const emailCard = { width: 600, maxWidth: "100%", margin: "0 auto", background: "#ffffff", borderRadius: 12, overflow: "hidden", boxShadow: "0 12px 40px rgba(25,25,25,.08)" };
 const emailStepDot = { flex: "0 0 24px", height: 24, borderRadius: 999, background: "#FD5000", color: "#fff", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
 const emailCta = { display: "inline-block", background: "#FD5000", color: "#fff", border: "none", fontWeight: 700, fontSize: 16, padding: "15px 34px", borderRadius: 8, cursor: "pointer" };
+const successBackdrop = { position: "fixed", inset: 0, zIndex: 70, background: "rgba(5,5,5,.72)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+const successCard = { position: "relative", zIndex: 1, width: "100%", maxWidth: 500, background: "#fff", borderRadius: 24, padding: "38px 34px 30px", textAlign: "center", boxShadow: "0 40px 100px rgba(0,0,0,.5)" };
+const successMark = { width: 60, height: 60, borderRadius: "50%", background: T.greenBg, color: T.green, display: "inline-flex", alignItems: "center", justifyContent: "center" };
+const successStat = { flex: 1, border: `1px solid ${T.border}`, borderRadius: 12, padding: "13px 10px", background: "#FCFCFB" };
+const successSkip = { border: "none", background: "transparent", color: T.textSec, fontSize: 14.5, fontWeight: 800, cursor: "pointer", padding: "8px 0" };
+const previewShell = { position: "relative", minHeight: 760, background: "#F6F5F2", borderLeft: "1px solid #E5E7EB", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" };
+const pitchEyebrow = { color: T.brand, fontSize: 12, fontWeight: 850, letterSpacing: ".14em", textTransform: "uppercase" };
+const pitchHeadline = { fontSize: 34, lineHeight: 1.12, letterSpacing: "-.03em", fontWeight: 950, color: "#111", margin: "14px 0 0" };
+const pitchBody = { fontSize: 15, lineHeight: 1.55, fontWeight: 650, color: "#4B5563", margin: "16px 0 0", maxWidth: 460 };
+const pitchCard = { display: "flex", alignItems: "flex-start", gap: 13, background: "#fff", border: "1px solid #E7E3DC", borderRadius: 13, padding: "14px 16px", boxShadow: "0 1px 2px rgba(17,17,17,.04)" };
+const pitchIcon = { width: 34, height: 34, borderRadius: 9, background: T.brandBg, color: T.brand, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+const pitchFooter = { display: "flex", alignItems: "center", gap: 9, marginTop: 26, color: "#6B7280", fontSize: 13, fontWeight: 750 };
+const jobCard = { background: "#fff", border: "1px solid #E7E3DC", borderRadius: 14, overflow: "hidden", boxShadow: "0 12px 34px rgba(17,17,17,.08)" };
+const jobCaption = { fontSize: 11.5, fontWeight: 850, letterSpacing: ".08em", textTransform: "uppercase", color: T.brand };
+const jobStatusChip = { display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 20, background: "#EEF0F2", color: "#374151", padding: "4px 10px", fontSize: 11.5, fontWeight: 850, flexShrink: 0 };
+const jobHighlight = { flex: 1, border: "1px solid #EEF0F2", borderRadius: 11, padding: "11px 13px", background: "#FCFCFB" };
+const jobChip = { display: "inline-flex", alignItems: "center", border: "1px solid #E7E3DC", background: "#FAFAF9", color: "#374151", borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 800 };
+const jobRoleChip = { display: "inline-flex", alignItems: "center", borderRadius: 20, background: "#F3F0FF", color: "#5B21B6", padding: "4px 10px", fontSize: 11.5, fontWeight: 850, flexShrink: 0 };
+const jobAvatar = { width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, flexShrink: 0 };
 const summaryChip = { display: "inline-flex", alignItems: "center", border: "1px solid #333", background: "#232323", color: "#e2e2e2", borderRadius: 20, padding: "6px 12px", fontSize: 12.5, fontWeight: 800 };
 const fetchSpinner = { width: 16, height: 16, borderRadius: "50%", border: "2px solid #333", borderTopColor: "#8f8f8f", animation: "lh-spin .7s linear infinite", flexShrink: 0, display: "inline-block" };
 const systemCard = (active) => ({ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 74, borderRadius: 12, border: `1px solid ${active ? "#e5e5e5" : "#303030"}`, background: active ? "#242424" : "#171717", padding: "12px 16px", cursor: "pointer", textAlign: "left" });

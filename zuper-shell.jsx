@@ -669,7 +669,7 @@ export function ZuperShell({ children }) {
               Option 2 Zuper setup
             </button>
             <button
-              onClick={() => { window.location.hash = "#/"; }}
+              onClick={() => { window.location.hash = "#/setup"; }}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 padding: "0 12px", height: 32, borderRadius: 6,

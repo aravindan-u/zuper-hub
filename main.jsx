@@ -6,8 +6,8 @@ import OnboardingApp from "./onboarding/OnboardingApp.jsx";
 import LeadHubOnboardingApp from "./onboarding/LeadHubOnboardingApp.jsx";
 import LoginFirstOnboardingApp from "./onboarding/LoginFirstOnboardingApp.jsx";
 
-// Simple hash router. Opening the link lands on the onboarding landing page;
-// the product shell lives at #/app, and the other onboarding options keep their routes.
+// Simple hash router. Opening the link lands on the product home page; the
+// setup flow lives at #/setup, and the other onboarding options keep their routes.
 function Root() {
   const [hash, setHash] = useState(() => window.location.hash);
   useEffect(() => {
@@ -16,22 +16,22 @@ function Root() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
-  const toApp = () => { window.location.hash = "#/app"; };
+  const toHome = () => { window.location.hash = "#/"; };
 
-  if (hash === "#/app") {
-    return (
-      <ZuperShell>
-        <App />
-      </ZuperShell>
-    );
+  if (hash === "#/setup") {
+    return <LoginFirstOnboardingApp onExit={toHome} />;
   }
   if (hash === "#/onboarding") {
-    return <OnboardingApp onExit={toApp} />;
+    return <OnboardingApp onExit={toHome} />;
   }
   if (hash === "#/lead-hub-onboarding") {
-    return <LeadHubOnboardingApp onExit={toApp} />;
+    return <LeadHubOnboardingApp onExit={toHome} />;
   }
-  return <LoginFirstOnboardingApp onExit={toApp} />;
+  return (
+    <ZuperShell>
+      <App />
+    </ZuperShell>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
