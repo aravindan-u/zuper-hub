@@ -110,8 +110,8 @@ class OnboardingErrorBoundary extends React.Component {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div style={{ minHeight: "100vh", background: "#050505", color: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: T.font }}>
-        <div style={{ width: "100%", maxWidth: 620, border: "1px solid #333", borderRadius: 16, background: "#171717", padding: 24 }}>
+      <div style={{ minHeight: "100vh", background: "#F7F4EF", color: "#1A1A1A", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: T.font }}>
+        <div style={{ width: "100%", maxWidth: 620, border: "1px solid #333", borderRadius: 16, background: "#FFFFFF", padding: 24 }}>
           <h1 style={{ ...h1, fontSize: 24 }}>Onboarding hit an error</h1>
           <p style={{ ...p, marginBottom: 16 }}>Refresh the page to restart the prototype. Error detail:</p>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#ffb4a1", background: "#241414", border: "1px solid #4a2424", borderRadius: 12, padding: 14, fontSize: 12 }}>{String(this.state.error?.message || this.state.error)}</pre>
@@ -172,7 +172,7 @@ export default function LeadHubOnboardingApp({ onExit } = {}) {
   return (
     <OnboardingErrorBoundary key={ONBOARDING_SCHEMA_VERSION}>
     <PreviewContext.Provider value={{ data, bucket, migration, selectedHub, wizardStep, mode }}>
-      <div style={{ minHeight: "100vh", background: mode === "product" ? T.canvas : "#050505", fontFamily: T.font, color: T.text }}>
+      <div style={{ "--z-brand": "#2563EB", "--z-brand-dark": "#1D4ED8", "--z-brand-bg": "#DBEAFE", minHeight: "100vh", background: mode === "product" ? T.canvas : "#F7F4EF", fontFamily: T.font, color: T.text }}>
         <GlobalStyle />
         <style>{`
           @media (max-width: 860px) {
@@ -266,8 +266,8 @@ function HubPicker({ selectedHub, setSelectedHub, onStartFresh }) {
         {HUBS.map((hub) => (
           <button key={hub.id} onClick={() => setSelectedHub(hub.id)} style={hubTile(selectedHub === hub.id)}>
             <hub.icon size={24} color={selectedHub === hub.id ? T.brand : T.textSec} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#f4f4f4" }}>{hub.label}</span>
-            <span style={{ fontSize: 12.5, color: "#9c9c9c" }}>{hub.phase}</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#1A1A1A" }}>{hub.label}</span>
+            <span style={{ fontSize: 12.5, color: "#9CA3AF" }}>{hub.phase}</span>
             {hub.note && <span style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: T.brand, background: T.brandBg, borderRadius: 20, padding: "3px 9px" }}>{hub.note}</span>}
           </button>
         ))}
@@ -431,14 +431,14 @@ function WebsiteFetchScreen({ data, set, onBack, onNext }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <LogoMark name={data.companyName} src={data.logo} size={46} radius={12} />
               <div>
-                <div style={{ color: "#f4f4f4", fontSize: 16, fontWeight: 900 }}>{data.companyName}</div>
-                <div style={{ color: "#9a9a9a", fontSize: 12.5 }}>Found from {normalizeWebsiteHost(websiteUrl)}</div>
+                <div style={{ color: "#1A1A1A", fontSize: 16, fontWeight: 900 }}>{data.companyName}</div>
+                <div style={{ color: "#9CA3AF", fontSize: 12.5 }}>Found from {normalizeWebsiteHost(websiteUrl)}</div>
               </div>
             </div>
           )}
           <MultiSelectGroup label="Services you provide" options={WEBSITE_SERVICE_OPTIONS} selected={services} onToggle={(value) => toggleList(services, value, commitServices)} />
           <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
+            <div style={{ fontSize: 13, fontWeight: 850, color: "#6B7280", marginBottom: 10 }}>Insurance / non-insurance</div>
             <div style={{ display: "grid", gap: 10 }}>
               {INSURANCE_MODES.map((mode) => (
                 <DarkOption key={mode} selected={data.insuranceMode === mode} onClick={() => commitInsuranceMode(mode)} title={mode} />
@@ -458,7 +458,7 @@ function NameScreen({ data, set, onBack, onNext }) {
     <Question group="People and delivery" title="Who are you?" subtitle="These details personalize your Zuper workspace and first-run queue." onBack={onBack}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "end", marginBottom: 14 }} className="lh-grid-2">
         <label style={{ display: "block" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>Company logo</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#6B7280", marginBottom: 8 }}>Company logo</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <LogoMark name={data.companyName} src={data.logo} size={54} radius={14} />
             <span style={uploadButton}>Upload logo</span>
@@ -473,7 +473,7 @@ function NameScreen({ data, set, onBack, onNext }) {
       </div>
       <div style={{ marginTop: 12 }}><DarkField label="Mobile number" value={data.phone} onChange={(v) => set("phone", v)} placeholder="(555) 123-4567" /></div>
       <div style={{ marginTop: 18 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>Your role</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#6B7280", marginBottom: 8 }}>Your role</div>
         <div style={{ display: "grid", gap: 10 }}>
           {["IT Admin", "CEO", "Other"].map((role) => (
             <DarkOption key={role} selected={data.role === role} onClick={() => set("role", role)} title={role} />
@@ -502,7 +502,7 @@ function ServicesCoverageScreen({ data, set, onBack, onNext }) {
     <Question group="Work setup" title="Review setup details" subtitle="Review the services Zuper should use for job categories, then mark whether they include insurance work." onBack={onBack}>
       <MultiSelectGroup label="Services you provide" options={WEBSITE_SERVICE_OPTIONS} selected={services} onToggle={(value) => toggleList(services, value, (next) => set("services", next))} />
       <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
+        <div style={{ fontSize: 13, fontWeight: 850, color: "#6B7280", marginBottom: 10 }}>Insurance / non-insurance</div>
         <div style={{ display: "grid", gap: 10 }}>
           {INSURANCE_MODES.map((mode) => (
             <DarkOption key={mode} selected={data.insuranceMode === mode} onClick={() => set("insuranceMode", mode)} title={mode} />
@@ -530,7 +530,7 @@ function BusinessHoursScreen({ data, set, onBack, onNext }) {
             <DarkSelect label="Open" value={data.businessHoursStart} options={TIME_OPTIONS} onChange={(v) => set("businessHoursStart", v)} />
             <DarkSelect label="Close" value={data.businessHoursEnd} options={TIME_OPTIONS} onChange={(v) => set("businessHoursEnd", v)} />
           </div>
-          <div style={{ color: "#9a9a9a", fontSize: 12.5, marginTop: 10 }}>Applies Monday-Friday. You can add weekend and holiday rules later.</div>
+          <div style={{ color: "#9CA3AF", fontSize: 12.5, marginTop: 10 }}>Applies Monday-Friday. You can add weekend and holiday rules later.</div>
         </div>
       )}
       <Footer><Btn disabled={!data.businessHours} onClick={onNext} IconR={ArrowRight}>Continue</Btn></Footer>
@@ -683,7 +683,7 @@ function CPQImportScreen({ data, set, onBack, onNext }) {
           <span>{data.cpqFileName || "Drop a PDF, DOCX, XLSX, XLS, or CSV file, or click to browse"}</span>
           <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => completeWithFile(e.target.files?.[0])} />
         </label>
-        <div style={{ color: "#9a9a9a", fontSize: 13, lineHeight: 1.45, marginTop: 12 }}>
+        <div style={{ color: "#9CA3AF", fontSize: 13, lineHeight: 1.45, marginTop: 12 }}>
           Zuper will use this to create starter products, service masters, price rows, and quoting templates.
         </div>
       </div>
@@ -711,7 +711,7 @@ function InviteScreen({ data, set, onBack, onNext }) {
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr", gap: 12 }} className="lh-grid-2">
         <DarkField label="Email" value={data.invitedEmail} onChange={(v) => set("invitedEmail", v)} placeholder="teammate@roofingco.com" />
         <label style={{ display: "block" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#ddd", marginBottom: 8 }}>Role</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#6B7280", marginBottom: 8 }}>Role</div>
           <select value={data.invitedRole} onChange={(e) => set("invitedRole", e.target.value)} style={darkInput}>
             {INVITE_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
           </select>
@@ -724,10 +724,10 @@ function InviteScreen({ data, set, onBack, onNext }) {
       {teammates.length > 0 && (
         <div style={{ ...darkPanel, marginTop: 16, display: "grid", gap: 8 }}>
           {teammates.map((member, index) => (
-            <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", borderBottom: index < teammates.length - 1 ? "1px solid #303030" : "none", paddingBottom: index < teammates.length - 1 ? 8 : 0 }}>
+            <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", borderBottom: index < teammates.length - 1 ? "1px solid #E7E3DC" : "none", paddingBottom: index < teammates.length - 1 ? 8 : 0 }}>
               <div>
-                <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 850 }}>{member.email}</div>
-                <div style={{ color: "#9a9a9a", fontSize: 12 }}>{member.role}</div>
+                <div style={{ color: "#1A1A1A", fontSize: 13.5, fontWeight: 850 }}>{member.email}</div>
+                <div style={{ color: "#9CA3AF", fontSize: 12 }}>{member.role}</div>
               </div>
               <button onClick={() => removeTeammate(index)} style={darkMutedLink}>Remove</button>
             </div>
@@ -753,7 +753,7 @@ function PlatformQuestionsScreen({ data, set, onBack, onNext }) {
     <Question group="Platforms" title="Which platforms should connect to Zuper?" subtitle="Tell us about finance, CRM, and communication tools so the workspace starts with the right extension plan." onBack={onBack}>
       <MultiSelectGroup label="Integrations" options={PLATFORM_INTEGRATIONS} selected={integrations} onToggle={toggleIntegration} />
       <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Do you have an existing communication platform?</div>
+        <div style={{ fontSize: 13, fontWeight: 850, color: "#6B7280", marginBottom: 10 }}>Do you have an existing communication platform?</div>
         <div style={{ display: "grid", gap: 10 }}>
           {COMMUNICATION_PLATFORMS.map((platform) => (
             <DarkOption key={platform} selected={data.communicationPlatform === platform} onClick={() => set("communicationPlatform", platform)} title={platform} />
@@ -925,7 +925,7 @@ function SetupDashboard({ data, bucket, onExit }) {
           </div>
         </header>
         <section style={{ maxWidth: 920, margin: "0 auto" }}>
-          <h1 style={{ fontSize: 42, lineHeight: 1.08, fontWeight: 950, color: "#171717", margin: 0, textAlign: "center" }}>Finish setting up Zuper</h1>
+          <h1 style={{ fontSize: 42, lineHeight: 1.08, fontWeight: 950, color: "#FFFFFF", margin: 0, textAlign: "center" }}>Finish setting up Zuper</h1>
           <p style={{ fontSize: 18, lineHeight: 1.45, color: "#4b5563", margin: "18px auto 36px", maxWidth: 700, textAlign: "center" }}>
             Review the defaults created from onboarding, then connect the systems and quoting tools your team already uses.
           </p>
@@ -1056,8 +1056,8 @@ function GroupHeader({ active }) {
 
 function ShellCard({ width = 640, children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#050505", display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 20px" }}>
-      <div className="su lh-shell" style={{ width: "100%", maxWidth: 1320, minHeight: 760, borderRadius: 20, border: "1px solid #242424", background: "#171717", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, .9fr)", overflow: "hidden", boxShadow: "0 30px 90px rgba(0,0,0,.45)" }}>
+    <div style={{ minHeight: "100vh", background: "#F7F4EF", display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 20px" }}>
+      <div className="su lh-shell" style={{ width: "100%", maxWidth: 1320, minHeight: 760, borderRadius: 20, border: "1px solid #F1ECE4", background: "#FFFFFF", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, .9fr)", overflow: "hidden", boxShadow: "0 24px 60px rgba(20,10,0,.10)" }}>
         <div style={{ padding: "86px 72px 68px", display: "flex", flexDirection: "column" }}>
           <div style={{ width: "100%", maxWidth: width, flex: 1 }}>{children}</div>
         </div>
@@ -1122,7 +1122,7 @@ function Info({ label, value }) {
 }
 
 function InfoDark({ label, value }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13.5 }}><span style={{ color: "#9a9a9a" }}>{label}</span><strong style={{ color: "#f1f1f1", textAlign: "right" }}>{value}</strong></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13.5 }}><span style={{ color: "#9CA3AF" }}>{label}</span><strong style={{ color: "#1A1A1A", textAlign: "right" }}>{value}</strong></div>;
 }
 
 function TrackerDot({ label, active }) {
@@ -1141,7 +1141,7 @@ function SmallAction({ icon: IconComp, children }) {
 function DarkField({ label, value, onChange, placeholder, type = "text", maxLength }) {
   return (
     <label style={{ display: "block" }}>
-      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>{label}</div>}
+      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#6B7280", marginBottom: 8 }}>{label}</div>}
       <input
         value={value}
         type={type}
@@ -1157,7 +1157,7 @@ function DarkField({ label, value, onChange, placeholder, type = "text", maxLeng
 function DarkSelect({ label, value, options, onChange }) {
   return (
     <label style={{ display: "block" }}>
-      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>{label}</div>}
+      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#6B7280", marginBottom: 8 }}>{label}</div>}
       <select value={value} onChange={(e) => onChange(e.target.value)} style={darkInput}>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -1170,8 +1170,8 @@ function DarkOption({ selected, onClick, title, desc }) {
     <button onClick={onClick} style={darkOption(selected)}>
       <span style={radioMark(selected)}>{selected && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111" }} />}</span>
       <span style={{ flex: 1 }}>
-        <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{title}</span>
-        {desc && <span style={{ display: "block", fontSize: 12.5, color: "#9a9a9a", marginTop: 3 }}>{desc}</span>}
+        <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#1A1A1A" }}>{title}</span>
+        {desc && <span style={{ display: "block", fontSize: 12.5, color: "#9CA3AF", marginTop: 3 }}>{desc}</span>}
       </span>
     </button>
   );
@@ -1180,7 +1180,7 @@ function DarkOption({ selected, onClick, title, desc }) {
 function MultiSelectGroup({ label, options, selected, onToggle }) {
   return (
     <div style={{ marginTop: 18 }}>
-      <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 850, color: "#6B7280", marginBottom: 10 }}>{label}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
         {options.map((option) => {
           const active = selected.includes(option);
@@ -1200,16 +1200,16 @@ function FoundItem({ children }) {
 }
 
 function UploadIcon() {
-  return <span style={{ width: 30, height: 30, borderRadius: 8, background: "#2a2a2a", color: "#eee", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>+</span>;
+  return <span style={{ width: 30, height: 30, borderRadius: 8, background: "#EFEBE4", color: "#9CA3AF", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>+</span>;
 }
 
 function PreviewText({ value, width = 140, size = 14, dim = false }) {
   if (!value) return <span style={{ ...skeletonLine(width), height: Math.max(8, size - 2), marginTop: size <= 12 ? 2 : 0 }} />;
-  return <span style={{ display: "block", color: dim ? "#777" : "#efefef", fontSize: size, fontWeight: dim ? 700 : 850, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>;
+  return <span style={{ display: "block", color: dim ? "#9CA3AF" : "#1A1A1A", fontSize: size, fontWeight: dim ? 700 : 850, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>;
 }
 
 function SkeletonCircle({ size = 36, radius = "50%" }) {
-  return <span style={{ width: size, height: size, borderRadius: radius, background: "#242424", border: "1px solid #303030", flexShrink: 0 }} />;
+  return <span style={{ width: size, height: size, borderRadius: radius, background: "#F1ECE4", border: "1px solid #E7E3DC", flexShrink: 0 }} />;
 }
 
 function OnboardingPreview() {
@@ -1245,9 +1245,9 @@ function OnboardingPreview() {
     { label: "Workflow", value: flow.length ? "Generated defaults" : "", tag: flow.length ? `${flow.length} stages` : "" },
   ];
   return (
-    <div className="lh-shell-preview" style={{ position: "relative", minHeight: 760, background: "linear-gradient(90deg, #1e1e1e, #111)", borderLeft: "1px solid #242424", overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: "22%", top: 170, width: 620, height: 620, borderRadius: 18, background: "#080808", border: "1px solid #1f1f1f", opacity: .86 }}>
-        <div style={{ height: 64, borderBottom: "1px solid #1d1d1d", display: "flex", alignItems: "center", gap: 14, padding: "0 24px" }}>
+    <div className="lh-shell-preview" style={{ position: "relative", minHeight: 760, background: "linear-gradient(90deg, #EFEAE2, #F7F4EF)", borderLeft: "1px solid #F1ECE4", overflow: "hidden" }}>
+      <div style={{ position: "absolute", left: "22%", top: 170, width: 620, height: 620, borderRadius: 18, background: "#FFFFFF", border: "1px solid #E7E3DC", opacity: .86 }}>
+        <div style={{ height: 64, borderBottom: "1px solid #EFEBE4", display: "flex", alignItems: "center", gap: 14, padding: "0 24px" }}>
           {companyName || data.logo ? <LogoMark name={companyName} src={data.logo} size={36} radius={10} /> : <SkeletonCircle size={36} radius={10} />}
           <div style={{ minWidth: 0 }}>
             <PreviewText value={companyName} width={190} size={18} />
@@ -1256,13 +1256,13 @@ function OnboardingPreview() {
           <span style={{ marginLeft: "auto", color: "#111", background: "#eee", borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 900 }}>Live preview</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", height: "calc(100% - 64px)" }}>
-          <div style={{ borderRight: "1px solid #1d1d1d", paddingTop: 18, display: "grid", justifyItems: "center", alignContent: "start", gap: 18 }}>
-            {[Inbox, FileText, Users, Receipt].map((IconComp, i) => <IconComp key={i} size={20} color={i === 0 ? "#eee" : "#5f5f5f"} />)}
+          <div style={{ borderRight: "1px solid #EFEBE4", paddingTop: 18, display: "grid", justifyItems: "center", alignContent: "start", gap: 18 }}>
+            {[Inbox, FileText, Users, Receipt].map((IconComp, i) => <IconComp key={i} size={20} color={i === 0 ? "#1A1A1A" : "#9CA3AF"} />)}
           </div>
           <div>
-            <div style={{ padding: 18, borderBottom: "1px solid #1d1d1d" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "#151515", border: "1px solid #222", padding: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: fullName ? "#2b2b2b" : "#202020", color: "#eee", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>{fullName ? fullName[0] : ""}</div>
+            <div style={{ padding: 18, borderBottom: "1px solid #EFEBE4" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "#FBFAF8", border: "1px solid #222", padding: 12 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: fullName ? "#EFEBE4" : "#EFEBE4", color: "#eee", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>{fullName ? fullName[0] : ""}</div>
                 <div style={{ minWidth: 0 }}>
                   <PreviewText value={fullName} width={150} size={14} />
                   <PreviewText value={data.role} width={90} size={12} dim />
@@ -1270,9 +1270,9 @@ function OnboardingPreview() {
               </div>
             </div>
             {previewRows.map((row, index) => (
-              <div key={row.label} style={{ padding: "18px 22px", borderBottom: "1px solid #1d1d1d" }}>
+              <div key={row.label} style={{ padding: "18px 22px", borderBottom: "1px solid #EFEBE4" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: index === 0 ? T.brand : "#2a2a2a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 }}>{row.label.slice(0, 2).toUpperCase()}</div>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: index === 0 ? T.brand : "#EFEBE4", color: index === 0 ? "#fff" : "#6B7280", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 }}>{row.label.slice(0, 2).toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
                     <PreviewText value={row.value} width={180 - index * 18} size={14} />
                     <div style={{ color: "#777", fontSize: 12 }}>{row.label}</div>
@@ -1411,7 +1411,7 @@ function CalendarPreview({ data }) {
           return (
             <div key={day} style={{ minHeight: 54, borderRadius: 8, border: `1px solid ${active ? "#fed7aa" : "#e5e7eb"}`, background: active ? "#fff7ed" : "#f1f5f9", padding: 6 }}>
               <div style={{ color: active ? "#9a3412" : "#94a3b8", fontSize: 10, fontWeight: 950, marginBottom: 7 }}>{day}</div>
-              {active ? <div style={{ height: 24, borderRadius: 5, background: "#fd5000", opacity: .9 }} /> : <div style={{ height: 24, borderRadius: 5, background: "#e2e8f0" }} />}
+              {active ? <div style={{ height: 24, borderRadius: 5, background: "var(--z-brand, #FD5000)", opacity: .9 }} /> : <div style={{ height: 24, borderRadius: 5, background: "#e2e8f0" }} />}
             </div>
           );
         })}
@@ -1437,7 +1437,7 @@ function ProposalStylePreview({ data, products, proposal }) {
       </div>
       <div style={proposalPage}>
         <div style={proposalHero}>
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(15,23,42,.85), rgba(253,80,0,.18))" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(15,23,42,.85), rgba(37,99,235,.18))" }} />
           <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
             <LogoMark name={companyName} src={data.logo} size={26} radius={7} />
             <div>
@@ -1453,7 +1453,7 @@ function ProposalStylePreview({ data, products, proposal }) {
             {rows.map((row, index) => (
               <div key={row} style={{ display: "grid", gridTemplateColumns: "1fr 42px", gap: 8, alignItems: "center", borderBottom: "1px solid #edf2f7", paddingBottom: 6 }}>
                 <div style={{ color: "#334155", fontSize: 10.5, fontWeight: 850 }}>{row}</div>
-                <div style={{ height: 7, borderRadius: 20, background: index === 0 ? "#fd5000" : "#cbd5e1" }} />
+                <div style={{ height: 7, borderRadius: 20, background: index === 0 ? "var(--z-brand, #FD5000)" : "#cbd5e1" }} />
               </div>
             ))}
           </div>
@@ -1542,7 +1542,7 @@ function TreeLeaf({ label, muted = false }) {
 }
 
 function ZuperLeadMark() {
-  return <div style={{ width: 48, height: 48, borderRadius: 14, background: T.brand, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 18, boxShadow: "0 12px 32px rgba(253,80,0,0.28)" }}><Zap size={26} fill="#fff" /></div>;
+  return <div style={{ width: 48, height: 48, borderRadius: 14, background: T.brand, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 18, boxShadow: "0 12px 32px rgba(37,99,235,0.28)" }}><Zap size={26} fill="#fff" /></div>;
 }
 
 function workflowFor(bucket, data) {
@@ -1637,8 +1637,8 @@ function setupActionsFor(data, bucket) {
       state: data.cpqFileName ? "Ready" : "To configure",
       cta: "Configure",
       initials: "IQ",
-      accent: "#fd5000",
-      accentBg: "#fff0e8",
+      accent: "var(--z-brand, #FD5000)",
+      accentBg: "var(--z-brand-bg, #FFF0E8)",
     },
   ];
   if (!integrations.length) {
@@ -1753,14 +1753,14 @@ function progressFor(mode, step) {
   return 100;
 }
 
-const h1 = { fontSize: 30, lineHeight: 1.15, letterSpacing: "-0.02em", fontWeight: 900, color: "#f4f4f4", margin: 0 };
-const p = { fontSize: 15.5, color: "#9c9c9c", lineHeight: 1.55, marginTop: 10, maxWidth: 660 };
+const h1 = { fontSize: 30, lineHeight: 1.15, letterSpacing: "-0.02em", fontWeight: 900, color: "#1A1A1A", margin: 0 };
+const p = { fontSize: 15.5, color: "#9CA3AF", lineHeight: 1.55, marginTop: 10, maxWidth: 660 };
 const softNote = { marginTop: 14, background: T.amberBg, border: "1px solid #F3C783", color: T.amber, borderRadius: 12, padding: 12, fontSize: 13.5, lineHeight: 1.45 };
-const groupPill = (active) => ({ display: "inline-flex", alignItems: "center", minHeight: 25, borderRadius: 20, border: `1px solid ${active ? "#f4f4f4" : "#333"}`, background: active ? "#f4f4f4" : "#1d1d1d", color: active ? "#111" : "#9a9a9a", padding: "4px 9px", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" });
+const groupPill = (active) => ({ display: "inline-flex", alignItems: "center", minHeight: 25, borderRadius: 20, border: `1px solid ${active ? "#1A1A1A" : "#E7E3DC"}`, background: active ? "#1A1A1A" : "#FFFFFF", color: active ? "#fff" : "#9CA3AF", padding: "4px 9px", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" });
 const hubTile = (active) => ({
   minHeight: 142,
-  background: active ? "#222" : "#181818",
-  border: `1.5px solid ${active ? "#e8e8e8" : "#303030"}`,
+  background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FBFAF8",
+  border: `1.5px solid ${active ? "var(--z-brand, #FD5000)" : "#E7E3DC"}`,
   borderRadius: 14,
   padding: 16,
   display: "flex",
@@ -1769,21 +1769,21 @@ const hubTile = (active) => ({
   gap: 8,
   cursor: "pointer",
   textAlign: "left",
-  boxShadow: active ? "0 12px 30px rgba(253,80,0,0.12)" : "none",
+  boxShadow: active ? "0 12px 30px rgba(37,99,235,0.12)" : "none",
 });
 const darkInput = {
   width: "100%",
   minHeight: 48,
   borderRadius: 11,
-  border: "1px solid #383838",
-  background: "#232323",
-  color: "#f2f2f2",
+  border: "1px solid #E7E3DC",
+  background: "#FFFFFF",
+  color: "#1A1A1A",
   padding: "11px 14px",
   outline: "none",
   fontSize: 15,
 };
-const uploadButton = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 38, borderRadius: 10, border: "1px solid #3a3a3a", background: "#232323", color: "#f2f2f2", padding: "0 12px", fontSize: 13.5, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" };
-const previewChip = { display: "inline-flex", width: "fit-content", borderRadius: 20, background: "#242424", color: "#d8d8d8", padding: "5px 9px", fontSize: 11.5, fontWeight: 850 };
+const uploadButton = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 38, borderRadius: 10, border: "1px solid #E7E3DC", background: "#FFFFFF", color: "#1A1A1A", padding: "0 12px", fontSize: 13.5, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" };
+const previewChip = { display: "inline-flex", width: "fit-content", borderRadius: 20, background: "#F1ECE4", color: "#6B7280", padding: "5px 9px", fontSize: 11.5, fontWeight: 850 };
 const previewTreeCard = { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, boxShadow: "0 14px 34px rgba(0,0,0,.18)" };
 const previewPanelTitle = { color: "#111827", fontSize: 13, fontWeight: 900, marginBottom: 8 };
 const proposalPage = { border: "1px solid #cbd5e1", background: "#fff", borderRadius: 3, overflow: "hidden", minHeight: 328, boxShadow: "0 12px 24px rgba(15,23,42,.12)" };
@@ -1791,9 +1791,9 @@ const proposalHero = { position: "relative", minHeight: 118, padding: 16, backgr
 const treeNodeRow = { display: "flex", alignItems: "center", gap: 7, minHeight: 24 };
 const treeChildRail = { marginLeft: 19, paddingLeft: 10, borderLeft: "1px solid #e2e8f0", display: "grid", gap: 5, marginTop: 3 };
 const treeStatusRow = { display: "flex", alignItems: "center", gap: 7, minHeight: 21 };
-const treeRow = { border: "1px solid #272727", background: "#141414", borderRadius: 10, padding: 10 };
+const treeRow = { border: "1px solid #EFEBE4", background: "#FFFFFF", borderRadius: 10, padding: 10 };
 const treeColor = { width: 9, height: 9, borderRadius: 2, marginTop: 3 };
-const statusBranch = { position: "relative", display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8, paddingLeft: 11, borderLeft: "1px solid #343434" };
+const statusBranch = { position: "relative", display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8, paddingLeft: 11, borderLeft: "1px solid #E7E3DC" };
 const statusChip = (status) => {
   const lower = status.toLowerCase();
   const bg = lower.includes("new") ? "#d7f8ed" : lower.includes("qual") || lower.includes("scheduled") || lower.includes("filed") || lower.includes("proposal") ? "#dff7f3" : lower.includes("not") ? "#f7dddd" : lower.includes("way") || lower.includes("site") ? "#d9efff" : lower.includes("assumption") ? "#f0e4fa" : "#e5e7eb";
@@ -1801,16 +1801,16 @@ const statusChip = (status) => {
   return { display: "inline-flex", width: "fit-content", maxWidth: 118, borderRadius: 5, background: bg, color, padding: "3px 6px", fontSize: 10, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 };
 const moreStatusChip = { display: "inline-flex", width: "fit-content", borderRadius: 5, background: "#e5e7eb", color: "#64748b", padding: "3px 6px", fontSize: 10, fontWeight: 900 };
-const skeletonLine = (width) => ({ display: "inline-block", width, borderRadius: 20, background: "#303030" });
-const darkPanel = { border: "1px solid #303030", background: "#1d1d1d", borderRadius: 14, padding: 16 };
-const cardTitle = { fontSize: 15, fontWeight: 900, color: "#f4f4f4", marginBottom: 10 };
-const uploadZone = { border: "1px dashed #4a4a4a", background: "#181818", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, color: "#dcdcdc", cursor: "pointer" };
+const skeletonLine = (width) => ({ display: "inline-block", width, borderRadius: 20, background: "#E7E3DC" });
+const darkPanel = { border: "1px solid #E7E3DC", background: "#FFFFFF", borderRadius: 14, padding: 16 };
+const cardTitle = { fontSize: 15, fontWeight: 900, color: "#1A1A1A", marginBottom: 10 };
+const uploadZone = { border: "1px dashed #D9D3CA", background: "#FBFAF8", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, color: "#6B7280", cursor: "pointer" };
 const loopRail = { display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0" };
 const loopPill = { borderRadius: 20, padding: "6px 10px", fontSize: 12, fontWeight: 900 };
-const flowBox = { position: "relative", border: "1px solid #3b3b3b", background: "#252525", color: "#f1f1f1", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
-const miniRemove = { marginLeft: 8, border: "none", background: "#3a3a3a", color: "#ddd", borderRadius: 8, cursor: "pointer" };
-const darkLink = { border: "none", background: "transparent", color: "#dcdcdc", cursor: "pointer", fontSize: 14, fontWeight: 800 };
-const darkMutedLink = { border: "none", background: "transparent", color: "#8a8a8a", cursor: "pointer", fontSize: 14, fontWeight: 800 };
+const flowBox = { position: "relative", border: "1px solid #E7E3DC", background: "#F1ECE4", color: "#1A1A1A", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
+const miniRemove = { marginLeft: 8, border: "none", background: "#E7E3DC", color: "#6B7280", borderRadius: 8, cursor: "pointer" };
+const darkLink = { border: "none", background: "transparent", color: "#6B7280", cursor: "pointer", fontSize: 14, fontWeight: 800 };
+const darkMutedLink = { border: "none", background: "transparent", color: "#9CA3AF", cursor: "pointer", fontSize: 14, fontWeight: 800 };
 const darkOption = (active) => ({
   display: "flex",
   alignItems: "center",
@@ -1818,13 +1818,13 @@ const darkOption = (active) => ({
   width: "100%",
   minHeight: 56,
   borderRadius: 12,
-  border: `1px solid ${active ? "#e5e5e5" : "#303030"}`,
-  background: active ? "#242424" : "#171717",
+  border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#E7E3DC"}`,
+  background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF",
   padding: "12px 16px",
   cursor: "pointer",
   textAlign: "left",
 });
-const radioMark = (active) => ({ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${active ? "#f4f4f4" : "#444"}`, background: active ? "#f4f4f4" : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
-const chipButton = (active) => ({ display: "inline-flex", alignItems: "center", gap: 8, border: `1px solid ${active ? "#e6e6e6" : "#333"}`, background: active ? "#252525" : "#171717", color: "#f1f1f1", borderRadius: 12, padding: "10px 13px", cursor: "pointer", fontSize: 14, fontWeight: 800 });
-const checkBox = (active) => ({ width: 20, height: 20, borderRadius: 6, background: active ? "#f1f1f1" : "transparent", color: "#111", border: `1px solid ${active ? "#f1f1f1" : "#444"}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 });
-const choiceTile = (active) => ({ border: `1px solid ${active ? "#eee" : "#333"}`, background: active ? "#282828" : "#171717", color: "#f4f4f4", borderRadius: 12, padding: "16px 12px", cursor: "pointer", fontWeight: 900 });
+const radioMark = (active) => ({ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${active ? "var(--z-brand, #FD5000)" : "#D9D3CA"}`, background: active ? "var(--z-brand, #FD5000)" : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+const chipButton = (active) => ({ display: "inline-flex", alignItems: "center", gap: 8, border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#E7E3DC"}`, background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF", color: "#1A1A1A", borderRadius: 12, padding: "10px 13px", cursor: "pointer", fontSize: 14, fontWeight: 800 });
+const checkBox = (active) => ({ width: 20, height: 20, borderRadius: 6, background: active ? "var(--z-brand, #FD5000)" : "transparent", color: "#fff", border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#D9D3CA"}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 });
+const choiceTile = (active) => ({ border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#E7E3DC"}`, background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF", color: "#1A1A1A", borderRadius: 12, padding: "16px 12px", cursor: "pointer", fontWeight: 900 });

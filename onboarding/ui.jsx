@@ -9,7 +9,9 @@ import {
 
 // ─── Theme tokens (warm, grounded, Zuper orange) ─────────────────────────────
 export const T = {
-  brand: "#FD5000", brandDark: "#D54400", brandBg: "#FFF0E8",
+  // Brand accent is CSS-variable driven so a single flow (e.g. Option 2) can
+  // re-theme it on its root without affecting the others. Defaults = Zuper orange.
+  brand: "var(--z-brand, #FD5000)", brandDark: "var(--z-brand-dark, #D54400)", brandBg: "var(--z-brand-bg, #FFF0E8)",
   text: "#1A1A1A", textSec: "#6B7280", textMut: "#9CA3AF",
   border: "#E7E3DC", borderSoft: "#EFEBE4",
   canvas: "#F7F4EF", surface: "#FFFFFF",

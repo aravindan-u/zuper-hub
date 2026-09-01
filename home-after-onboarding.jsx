@@ -8,7 +8,7 @@ import { readOnboardingState, migrationProgress, readProfile, startMigration } f
 import { SetupJourney } from "./home-page.jsx";
 import { T, Modal, GlobalStyle, LogoMark } from "./onboarding/ui.jsx";
 import {
-  AlertTriangle, Search, Bell, HelpCircle, LifeBuoy, MessageCircle, CalendarClock,
+  Search, Bell, HelpCircle, LifeBuoy, MessageCircle, CalendarClock,
   Bot, Ticket, Compass, Send, ArrowRight, PartyPopper, ChevronRight, PlayCircle,
 } from "lucide-react";
 
@@ -94,20 +94,6 @@ export default function HomeAfterOnboarding() {
           </div>
         </header>
 
-        {/* ── Finish-setup banner ── */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginBottom: 26,
-          background: T.amberBg, border: `1px solid #F1E1BE`, borderRadius: 14, padding: "14px 18px",
-        }}>
-          <AlertTriangle size={19} color={T.amber} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 14.5, color: T.text, flex: 1 }}>
-            Finish setting up {companyName} to unlock everything.
-          </span>
-          <a href="#/setup" style={{ fontSize: 14.5, fontWeight: 700, color: INK, textDecoration: "underline", textUnderlineOffset: 3, whiteSpace: "nowrap" }}>
-            Add missing details
-          </a>
-        </div>
-
         {/* ── Row 1: the onboarding widget spans the full dashboard width ── */}
         <SetupJourney prog={prog} onStartMigration={onStartMigration} />
 
@@ -122,7 +108,7 @@ export default function HomeAfterOnboarding() {
           />
           <WidgetCard
             icon={PlayCircle}
-            title="Watch Zuper onboarding videos"
+            title="Mastering Zuper"
             body="Short, practical walkthroughs — from your first job and proposal to invoicing and automations."
             primary={{ label: "Watch videos", IconR: ArrowRight }}
           />
