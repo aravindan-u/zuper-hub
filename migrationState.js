@@ -24,17 +24,41 @@ function write(state) {
   }
 }
 
-// Called when the user chooses "Start data migration" on the success screen.
-export function startMigration({ source } = {}) {
+// Called when the user chooses "Start data migration" (success screen or the
+// dashboard line item).
+export function startMigration({ source, profile } = {}) {
+  const prev = readOnboardingState();
   write({
     completed: true,
-    migration: { status: "running", source: source || "", startedAt: Date.now(), durationMs: MIGRATION_DURATION_MS },
+    phase: (prev && prev.phase) || 1,
+    profile: profile || (prev && prev.profile) || null,
+    migration: { status: "running", source: source || (prev && prev.migration && prev.migration.source) || "", startedAt: Date.now(), durationMs: MIGRATION_DURATION_MS },
   });
 }
 
-// Called when the user skips migration and heads straight to the homepage.
-export function completeOnboardingNoMigration() {
-  write({ completed: true, migration: { status: "skipped" } });
+// Called when the user dismisses migration and heads straight to the homepage.
+// Migration becomes a pending line item on the dashboard they can start later.
+export function completeOnboardingNoMigration({ source, profile } = {}) {
+  const prev = readOnboardingState();
+  write({ completed: true, phase: (prev && prev.phase) || 1, profile: profile || (prev && prev.profile) || null, migration: { status: "skipped", source: source || "" } });
+}
+
+// The captured user/company profile (first name, company, logo), used to
+// personalize the post-onboarding homepage.
+export function readProfile() {
+  const s = readOnboardingState();
+  return (s && s.profile) || null;
+}
+
+// Card-on-file status for the Getting Started journey: "none" | "added" | "skipped".
+export function readCardStatus() {
+  const s = readOnboardingState();
+  return (s && s.card) || "none";
+}
+
+export function setCardStatus(status) {
+  const s = readOnboardingState() || { completed: true };
+  write({ ...s, card: status });
 }
 
 // Which setup phase the dashboard journey is on (1–4). Persisted so "Next phase"
@@ -54,7 +78,7 @@ export function setPhase(phase) {
 export function migrationProgress(state, nowMs = Date.now()) {
   const m = state && state.migration;
   if (!m || m.status === "skipped") {
-    return { active: false, done: false, pct: 0, skipped: true, source: "" };
+    return { active: false, done: false, pct: 0, skipped: true, source: (m && m.source) || "" };
   }
   const duration = m.durationMs || MIGRATION_DURATION_MS;
   const pct = Math.max(0, Math.min(1, (nowMs - m.startedAt) / duration));

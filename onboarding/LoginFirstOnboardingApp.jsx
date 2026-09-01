@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowUp, Copy, Lightbulb, Package, RefreshCcw, CreditCard, ShieldCheck, Sparkles, PartyPopper, Clock } from "lucide-react";
+import { AlertTriangle, ArrowUp, Copy, Lightbulb, Package, RefreshCcw, CreditCard, ShieldCheck, Sparkles, PartyPopper, Clock, Globe } from "lucide-react";
 import { WORK_TYPES, bucketForWorkType } from "./buckets.js";
 import { startMigration, completeOnboardingNoMigration } from "../migrationState.js";
 import {
@@ -101,21 +101,21 @@ const MANUFACTURER_CATALOG = [
 const INVITE_ROLES = ["Sales", "Inspector", "Production", "Dispatcher", "Finance", "Admin"];
 const WEBSITE_SERVICE_OPTIONS = ["Roof replacement", "Roof repair", "Storm damage", "Commercial roofing", "Gutters", "Skylights"];
 // One pill per wizard step, in the order the user walks them.
-const ONBOARDING_GROUPS = ["Your CRM", "Tools", "Your data", "Team", "Proposal", "Billing"];
+const ONBOARDING_GROUPS = ["Your CRM", "Tools", "Services", "Proposal"];
 const INSURANCE_MODES = ["Insurance work", "Non-insurance work", "Both"];
 const BUSINESS_HOURS = ["Weekdays, 8 AM-5 PM", "Weekdays, 7 AM-6 PM", "Monday-Saturday", "24/7 emergency coverage", "Set hours manually"];
 const TIME_OPTIONS = ["6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"];
 const PLATFORM_INTEGRATIONS = ["QBO", "HubSpot", "None yet"];
 const COMMUNICATION_PLATFORMS = ["RingCentral", "Twilio", "No existing platform"];
 const MEASUREMENT_TOOLS = [
-  { id: "EagleView", note: "Aerial roof measurement reports" },
-  { id: "Hover", note: "3D property models from photos" },
-  { id: "RoofSnap", note: "On-site measurement and estimating" },
+  { id: "EagleView", note: "Aerial roof measurement reports", logo: "/logo-eagleview.png" },
+  { id: "Hover", note: "3D property models from photos", logo: "/logo-hover.png" },
+  { id: "RoofSnap", note: "On-site measurement and estimating", logo: "/logo-roofsnap.png" },
   { id: "None yet", note: "We measure manually today" },
 ];
 const ONBOARDING_SCHEMA_VERSION = "zuper-login-first-onboarding-v1";
 // Login-first variant: no "Who are you?" step, so the wizard is one screen shorter than Option 2.
-const WIZARD_STEP_COUNT = 7;
+const WIZARD_STEP_COUNT = 5;
 // CRM path collapses inventory/proposal/quoting/invite/platforms into one summary.
 const MIGRATION_STEP_COUNT = 6;
 // What a connected CRM hands over, so the summary has something to affirm.
@@ -340,8 +340,8 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
           bucket={bucket}
           connectionState={connectionState}
           setConnectionState={setConnectionState}
-          onMigrate={() => { startMigration({ source: data.currentSystem }); exit(); }}
-          onHome={() => { completeOnboardingNoMigration(); exit(); }}
+          onMigrate={() => { startMigration({ source: data.currentSystem, profile: { firstName: data.firstName, companyName: data.companyName, logo: data.logo || null } }); exit(); }}
+          onHome={() => { completeOnboardingNoMigration({ source: data.currentSystem, profile: { firstName: data.firstName, companyName: data.companyName, logo: data.logo || null } }); exit(); }}
         />
       )}
       {mode === "product" && (
@@ -491,16 +491,14 @@ function MigrationReconnect({ data, set, connectionState, setConnectionState, so
 }
 
 function LeadWizard({ step, setStep, data, set, bucket, onMigrate, onHome }) {
-  // Flow after the welcome email link: tools in use -> migrate -> confirm ->
-  // card on file (optional) -> done. The final success step hands off either
-  // to the data-migration tracker or straight to the homepage.
+  // Streamlined core flow: CRM -> manufacturers & measurement -> services ->
+  // proposal -> done. Team invites and payment are deferred to the post-onboarding
+  // dashboard journey (invite once confident after a proposal; payment on day 4-5).
   const screens = [
     <CrmScreen data={data} set={set} onNext={() => setStep(1)} />,
-    <VendorToolsScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
+    <ToolsMeasurementScreen data={data} set={set} onBack={() => setStep(0)} onNext={() => setStep(2)} />,
     <MigrateDataScreen data={data} set={set} onBack={() => setStep(1)} onNext={() => setStep(3)} />,
-    <TeamConfirmScreen data={data} set={set} bucket={bucket} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
-    <ProposalSetupScreen data={data} set={set} onBack={() => setStep(3)} onNext={() => setStep(5)} />,
-    <CardOnFileScreen data={data} set={set} onBack={() => setStep(4)} onNext={() => setStep(6)} />,
+    <ProposalSetupScreen data={data} set={set} onBack={() => setStep(2)} onNext={() => setStep(4)} />,
     <SuccessOverlay
       data={data}
       bucket={bucket}
@@ -1281,7 +1279,7 @@ function SuccessOverlay({ data, bucket, onMigrate, onHome }) {
   const stats = [
     { icon: Layers, value: categories.length, label: categories.length === 1 ? "Job category" : "Job categories" },
     { icon: Sparkles, value: services.length, label: services.length === 1 ? "Service" : "Services" },
-    { icon: Package, value: listOf(data.suppliers).length, label: "Vendors" },
+    { icon: Package, value: listOf(data.manufacturers).length, label: "Manufacturers" },
     { icon: Users, value: teammates.length + 1, label: "Users" },
   ];
   const setupHighlights = [
@@ -1354,7 +1352,8 @@ function SuccessOverlay({ data, bucket, onMigrate, onHome }) {
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
-          <Btn size="lg" full onClick={onMigrate}>Take me to home&nbsp; 🚀</Btn>
+          <Btn size="lg" full onClick={onMigrate} IconR={ArrowRight}>Start data migration</Btn>
+          <button onClick={onHome} style={successSkip}>Take me to home&nbsp; 🚀</button>
         </div>
       </div>
     </div>
@@ -1435,28 +1434,30 @@ function CrmScreen({ data, set, onBack, onNext }) {
   );
 }
 
-// ─── Step 2: the vendors and measurement tools alongside it ────────────────
-function VendorToolsScreen({ data, set, onBack, onNext }) {
-  const vendors = listOf(data.suppliers);
+// ─── Step 2: the manufacturers you install and how you measure ─────────────
+// (Suppliers/"players" moved to the dashboard journey; this step covers the
+// manufacturers you install and your measurement tool.)
+function ToolsMeasurementScreen({ data, set, onBack, onNext }) {
+  const manufacturers = listOf(data.manufacturers);
   const measurement = listOf(data.measurementTools);
 
   return (
     <Question
       group="Tools"
-      title="What else do you work with?"
-      subtitle="Vendors set up your parts catalog, and your measurement tool feeds roof reports straight into estimates."
+      title="What do you install and measure with?"
+      subtitle="Pick the manufacturers you install and the tool you measure roofs with — both feed straight into your estimates."
       onBack={onBack}
     >
-      <div style={sectionLabel}>Your vendors</div>
-      <div style={{ display: "grid", gap: 10 }}>
-        {SUPPLIER_CATALOG.map((supplier) => (
-          <SupplierCard
-            key={supplier.id}
-            supplier={supplier}
-            selected={vendors.includes(supplier.id)}
-            onToggle={() => toggleList(vendors, supplier.id, (next) => set("suppliers", next))}
-          />
-        ))}
+      <div style={sectionLabel}>Manufacturers you install</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {MANUFACTURERS.map((name) => {
+          const on = manufacturers.includes(name);
+          return (
+            <button key={name} onClick={() => toggleList(manufacturers, name, (next) => set("manufacturers", next))} style={chipButton(on)}>
+              <span style={checkBox(on)}>{on && "✓"}</span>{name}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ ...sectionLabel, marginTop: 28 }}>Your measurement tool</div>
@@ -1469,6 +1470,11 @@ function VendorToolsScreen({ data, set, onBack, onNext }) {
               onClick={() => toggleList(measurement, tool.id, (next) => set("measurementTools", next))}
               style={systemCard(on)}
             >
+              {tool.logo && (
+                <span style={systemLogoTile}>
+                  <img src={tool.logo} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+                </span>
+              )}
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#f4f4f4" }}>{tool.id}</span>
                 <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{tool.note}</span>
@@ -1508,6 +1514,29 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
   const commitServices = (next) => {
     set("services", next);
     set("workType", inferWorkTypeFromSetup(next, data.insuranceMode));
+  };
+
+  // Start-from-scratch: let the user paste their website so Zuper can fetch the
+  // business name, logo, and services instead of picking everything by hand.
+  const [siteDraft, setSiteDraft] = useState(() => textOf(data.websiteUrl));
+  const [siteStatus, setSiteStatus] = useState(() => (data.websiteFetched ? "done" : "idle"));
+  const fetchFromSite = () => {
+    const url = siteDraft.trim();
+    if (!url || siteStatus === "loading") return;
+    setSiteStatus("loading");
+    set("websiteUrl", url);
+    const host = normalizeWebsiteHost(url);
+    const profile = host && host === normalizeWebsiteHost(PREFILL_WEBSITE) ? PREFILL_PROFILE : inferProfileFromWebsite(url);
+    setTimeout(() => {
+      const merged = Array.from(new Set([...services, ...profile.services]));
+      set("companyName", profile.name);
+      set("logo", profile.logo);
+      set("services", merged);
+      set("insuranceMode", profile.insuranceMode);
+      set("workType", inferWorkTypeFromSetup(merged, profile.insuranceMode));
+      set("websiteFetched", true);
+      setSiteStatus("done");
+    }, 1100);
   };
 
   // "Add more" reveals a free-text field and renames this step to "Services".
@@ -1552,13 +1581,50 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
       title={migrating ? `What we read from ${source}` : "Tell us what you do"}
       subtitle={migrating
         ? "Zuper filled in what it could. Add or remove anything below — your records import later, once setup is done."
-        : "No system to read from, so pick the services you offer and Zuper will build your defaults."}
+        : "Paste your website and Zuper fetches your name, logo, and services — or pick them yourself below."}
       onBack={onBack}
     >
+      {!migrating && (
+        <div style={{ ...darkPanel, marginBottom: 14 }}>
+          <div style={{ ...cardTitle, marginBottom: 4 }}>Fetch from your website</div>
+          <div style={{ fontSize: 12.5, color: "#9a9a9a", marginBottom: 14 }}>
+            We'll read your business name, logo, and the services you offer. You can edit everything after.
+          </div>
+          <div style={{ display: "flex", gap: 8 }} className="lh-grid-2">
+            <div style={{ display: "flex", alignItems: "center", gap: 9, flex: 1, background: "#101010", border: "1px solid #303030", borderRadius: 10, padding: "0 12px" }}>
+              <Globe size={16} color="#8f8f8f" style={{ flexShrink: 0 }} />
+              <input
+                value={siteDraft}
+                placeholder="yourroofingco.com"
+                onChange={(e) => { setSiteDraft(e.target.value); if (siteStatus === "done") setSiteStatus("idle"); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); fetchFromSite(); } }}
+                style={{ ...darkInput, border: "none", background: "transparent", padding: "11px 0", flex: 1 }}
+              />
+            </div>
+            <Btn onClick={fetchFromSite} disabled={!siteDraft.trim() || siteStatus === "loading"} IconL={siteStatus === "loading" ? undefined : Globe}>
+              {siteStatus === "loading" ? "Fetching…" : "Fetch details"}
+            </Btn>
+          </div>
+
+          {siteStatus === "done" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, background: "rgba(52,168,95,.08)", border: "1px solid rgba(52,168,95,.4)", borderRadius: 10, padding: "12px 14px" }}>
+              <LogoMark name={data.companyName} src={data.logo || undefined} size={40} radius={10} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: "#f1f1f1", fontSize: 14.5, fontWeight: 850 }}>{data.companyName || "Your business"}</div>
+                <div style={{ color: "#9a9a9a", fontSize: 12.5, marginTop: 2 }}>
+                  Fetched from {normalizeWebsiteHost(data.websiteUrl) || "your website"} · services below are pre-selected
+                </div>
+              </div>
+              <CheckCircle2 size={18} color="#5fd18b" style={{ flexShrink: 0 }} />
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={darkPanel}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
           <div style={{ ...cardTitle, marginBottom: 0 }}>Services you provide</div>
-          {autoFilled && (
+          {(autoFilled || (!migrating && data.websiteFetched)) && (
             <span style={{ ...summaryChip, borderColor: "rgba(52,168,95,.45)", color: "#7ee2a2" }}>Auto-filled</span>
           )}
         </div>
@@ -1596,14 +1662,14 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {INSURANCE_MODES.map((mode) => (
+          <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Do you do insurance work?</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="lh-grid-2">
+            {[["Yes", "Insurance work"], ["No", "Non-insurance work"]].map(([label, mode]) => (
               <DarkOption
-                key={mode}
-                selected={data.insuranceMode === mode}
+                key={label}
+                selected={label === "Yes" ? (Boolean(data.insuranceMode) && data.insuranceMode !== "Non-insurance work") : data.insuranceMode === "Non-insurance work"}
                 onClick={() => { set("insuranceMode", mode); set("workType", inferWorkTypeFromSetup(services, mode)); }}
-                title={mode}
+                title={label}
               />
             ))}
           </div>
@@ -2523,9 +2589,9 @@ function OnboardingPreview() {
     // CRM step: before connecting, pitch the value; after connecting, confirm the
     // connection (no fake customer record is pulled into the preview).
     body = connected ? <CrmConnectedPreview source={data.currentSystem} /> : <CrmPitchPreview />;
-  } else if (wizardStep === 5) {
-    // Card-on-file step: a marketing poster for seamless payments, not a job record.
-    body = <CardPitchPreview />;
+  } else if (wizardStep === 3 && data.proposalFileName) {
+    // Proposal step: once a sample is uploaded, show the generated proposal cover.
+    body = <ProposalCoverPreview data={data} />;
   } else {
     body = <JobPreview step={wizardStep} data={data} bucket={bucket} connected={connected} />;
   }
@@ -2684,33 +2750,158 @@ function CrmPitchPreview() {
 }
 
 // Steps 1–7 after connecting — the job record, showing only this step's additions.
+// Proposal step — a generated sample proposal built from the upload. The
+// document is multi-page: clicking it flips through cover → scope → sign-off.
+function ProposalCoverPreview({ data }) {
+  const company = data.companyName || "Maven Roofing";
+  const firstWord = company.split(" ")[0] || company;
+  const restWords = company.split(" ").slice(1).join(" ") || "Roofing";
+  const fileName = data.proposalFileName || "your proposal";
+
+  const [page, setPage] = useState(0);
+  const PAGE_COUNT = 3;
+  const next = () => setPage((p) => (p + 1) % PAGE_COUNT);
+
+  const innerPage = { position: "relative", width: 300, height: 400, borderRadius: 12, overflow: "hidden", background: "#fff", boxShadow: "0 18px 44px rgba(17,17,17,.32)" };
+
+  // Page 0 — branded cover with a generic (unbranded) roofing image.
+  const Cover = (
+    <div style={{ ...innerPage, background: "linear-gradient(160deg, #17457a 0%, #0c2748 55%, #08182f 100%)" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "46%", backgroundImage: "url(/roof-generic.svg)", backgroundSize: "cover", backgroundPosition: "center 28%" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "64%", background: "linear-gradient(180deg, rgba(12,39,72,1) 0%, rgba(12,39,72,.35) 42%, rgba(150,26,22,.42) 100%)" }} />
+      <div style={{ position: "absolute", top: 16, right: 18, textAlign: "right", color: "#fff", lineHeight: 1.15 }}>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".03em", opacity: .95 }}>{firstWord}</div>
+        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".03em", opacity: .95 }}>{restWords}</div>
+      </div>
+      <div style={{ position: "absolute", top: 58, left: 22, display: "flex", gap: 12 }}>
+        <div style={{ width: 4, height: 98, background: "#E1352B", borderRadius: 2 }} />
+        <div style={{ color: "#fff", fontSize: 30, fontWeight: 900, lineHeight: 1.02, letterSpacing: "-.01em" }}>ROOFING<br />PROPOSAL</div>
+      </div>
+      <div style={{ position: "absolute", left: 24, bottom: 22, color: "#fff" }}>
+        <div style={{ fontSize: 10.5, fontWeight: 850 }}>Submitted To:</div>
+        <div style={{ fontSize: 11.5, fontWeight: 850, marginTop: 3 }}>Mr. Jaime O&rsquo;Hara</div>
+        <div style={{ fontSize: 10, opacity: .85, marginTop: 1 }}>9 Ridge Lane</div>
+        <div style={{ fontSize: 10, opacity: .85 }}>Colorado Springs, CO</div>
+      </div>
+    </div>
+  );
+
+  // Page 1 — scope of work + line-item pricing.
+  const Scope = (
+    <div style={innerPage}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #eceff3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 950, color: "#111827" }}>{firstWord} {restWords}</div>
+          <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: ".14em", color: "#9aa1ab", marginTop: 2 }}>ROOFING PROPOSAL</div>
+        </div>
+        <div style={{ width: 4, height: 26, background: "#E1352B", borderRadius: 2 }} />
+      </div>
+      <div style={{ padding: "16px 20px" }}>
+        <div style={{ fontSize: 12.5, fontWeight: 950, color: "#111827", marginBottom: 10 }}>Scope of work</div>
+        {[["Tear-off & disposal", "$2,400"], ["Architectural shingles", "$6,850"], ["Underlayment & ice guard", "$1,150"], ["Ridge vents & flashing", "$980"], ["Cleanup & haul-away", "$420"]].map(([label, price]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px dashed #eceff3", fontSize: 10.5 }}>
+            <span style={{ color: "#374151", fontWeight: 700 }}>{label}</span>
+            <span style={{ color: "#111827", fontWeight: 850 }}>{price}</span>
+          </div>
+        ))}
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 10, borderTop: "2px solid #111827" }}>
+          <span style={{ fontSize: 11, fontWeight: 900, color: "#111827" }}>Subtotal</span>
+          <span style={{ fontSize: 11, fontWeight: 950, color: "#17457a" }}>$11,800</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Page 2 — total investment, terms, and signature block.
+  const Sign = (
+    <div style={innerPage}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #eceff3" }}>
+        <div style={{ fontSize: 13, fontWeight: 950, color: "#111827" }}>Investment &amp; sign-off</div>
+      </div>
+      <div style={{ padding: "16px 20px" }}>
+        <div style={{ background: "#f4f7fb", border: "1px solid #e3ebf3", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+          <div style={{ fontSize: 9, fontWeight: 850, letterSpacing: ".1em", color: "#6B7280" }}>TOTAL INVESTMENT</div>
+          <div style={{ fontSize: 26, fontWeight: 950, color: "#17457a", marginTop: 4 }}>$12,760</div>
+          <div style={{ fontSize: 9.5, color: "#6B7280", marginTop: 2 }}>Materials, labor, and a 10-year workmanship warranty.</div>
+        </div>
+        {["50% deposit due on approval", "Balance on completion", "Valid for 30 days"].map((t) => (
+          <div key={t} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 10, color: "#374151", marginBottom: 8 }}>
+            <span style={{ width: 5, height: 5, borderRadius: 3, background: "#E1352B" }} />{t}
+          </div>
+        ))}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ borderBottom: "1.5px solid #111827", height: 24 }} />
+          <div style={{ fontSize: 9, color: "#9aa1ab", fontWeight: 700, marginTop: 4 }}>Customer signature</div>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ borderBottom: "1.5px solid #111827", height: 24 }} />
+          <div style={{ fontSize: 9, color: "#9aa1ab", fontWeight: 700, marginTop: 4 }}>Date</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const pages = [Cover, Scope, Sign];
+  const captions = ["Sample proposal generated", "Scope of work & pricing", "Investment & sign-off"];
+  const subcaptions = [
+    `Built from ${fileName} — your branding, terms, and pricing applied.`,
+    "Line items and materials pulled straight from your estimate.",
+    "Totals, terms, and a signature block, ready to send.",
+  ];
+
+  return (
+    <div style={{ padding: "34px 34px", width: "100%", maxWidth: 560, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ alignSelf: "flex-start", ...jobCaption, marginBottom: 14 }}>Generated from your upload</div>
+
+      <div
+        onClick={next}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); next(); } }}
+        title="Click to see the next page"
+        style={{ position: "relative", width: 300, cursor: "pointer" }}
+      >
+        {/* Faint pages behind, so it reads as a real multi-page document */}
+        <div style={{ position: "absolute", inset: 0, transform: "rotate(3deg) translate(11px, 9px)", background: "#fff", borderRadius: 12, boxShadow: "0 8px 22px rgba(17,17,17,.14)" }} />
+        {pages[page]}
+      </div>
+
+      {/* Page dots — click a dot to jump straight to that page */}
+      <div style={{ display: "flex", gap: 6, marginTop: 16, alignItems: "center" }}>
+        {pages.map((_, i) => (
+          <span
+            key={i}
+            onClick={(e) => { e.stopPropagation(); setPage(i); }}
+            style={{ width: i === page ? 18 : 7, height: 7, borderRadius: 4, background: i === page ? "#17457a" : "#cbd5e1", cursor: "pointer", transition: "all .2s ease" }}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 12, textAlign: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: "#111" }}>{captions[page]}</div>
+        <div style={{ fontSize: 12, color: "#6B7280", marginTop: 3, maxWidth: 320 }}>{subcaptions[page]}</div>
+        <div style={{ fontSize: 11, color: "#9aa1ab", marginTop: 8, fontWeight: 700 }}>Click the document to flip pages · {page + 1} / {PAGE_COUNT}</div>
+      </div>
+    </div>
+  );
+}
+
 function JobPreview({ step, data, bucket, connected }) {
   const services = listOf(data.services);
-  const suppliers = listOf(data.suppliers);
+  const manufacturers = listOf(data.manufacturers);
   const measurement = listOf(data.measurementTools).filter((tool) => tool !== "None yet");
-  const teammates = listOf(data.teammates);
   const categories = jobDefaultTreeFor(data, bucket);
   const source = data.currentSystem;
 
   const panels = {
-    0: {
-      caption: `Pulled from ${source}`,
-      title: "Customer",
-      rows: [
-        ["Customer", "Craig Calzoni"],
-        ["Service address", "2847 Boulevard, Los Angeles, CA"],
-        ["Lead source", source],
-        ["Status", "New"],
-      ],
-    },
     1: {
-      caption: "Materials and measurement",
+      caption: "Manufacturers and measurement",
       title: "Materials & PO",
       rows: [
-        ["Vendors", suppliers.join(", ") || "None connected"],
+        ["Manufacturers", manufacturers.join(", ") || "None selected"],
         ["Measurement", measurement.join(", ") || "Manual take-off"],
       ],
-      chips: [...suppliers, ...measurement],
+      chips: [...manufacturers, ...measurement],
     },
     2: {
       caption: "Generated from your services",
@@ -2723,20 +2914,12 @@ function JobPreview({ step, data, bucket, connected }) {
       chips: categories.map((item) => item.category),
     },
     3: {
-      caption: "From your team",
-      title: "Assignees",
-      people: [
-        { name: "You", role: "Admin" },
-        ...teammates.map((member) => ({ name: member.email.split("@")[0], role: member.role })),
-      ],
-    },
-    4: {
       caption: "Built from your proposal",
       title: "Finance",
       highlights: [["Job value", "$10,000"], ["Job profit", "$1,000"]],
       rows: [["Template", data.proposalFileName || "Not uploaded yet"]],
     },
-    5: {
+    _unused: {
       caption: "Billing",
       title: "Subscription",
       rows: [
@@ -2746,7 +2929,7 @@ function JobPreview({ step, data, bucket, connected }) {
       ],
     },
   };
-  const panel = panels[step] || panels[5];
+  const panel = panels[step] || panels[3];
 
   return (
     <div style={{ padding: "38px 34px", width: "100%", maxWidth: 560 }}>

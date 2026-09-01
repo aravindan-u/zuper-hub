@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4c789"/>
+      <stop offset="0.55" stop-color="#e79a5f"/>
+      <stop offset="1" stop-color="#c9713f"/>
+    </linearGradient>
+    <linearGradient id="roofA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b4a3a"/>
+      <stop offset="1" stop-color="#4a3025"/>
+    </linearGradient>
+    <linearGradient id="roofB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d5a48"/>
+      <stop offset="1" stop-color="#553a2c"/>
+    </linearGradient>
+    <linearGradient id="roofC" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a6552"/>
+      <stop offset="1" stop-color="#5f4131"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="560" fill="url(#sky)"/>
+
+  <!-- Soft sun glow -->
+  <circle cx="960" cy="150" r="220" fill="#f7d9a8" opacity="0.35"/>
+
+  <!-- Distant tree line -->
+  <path d="M0 300 Q120 250 240 285 T480 280 T720 270 T960 285 T1200 275 V560 H0 Z" fill="#a9743f" opacity="0.45"/>
+
+  <!-- Row of pitched roofs (generic suburban roofline) -->
+  <g>
+    <!-- house 1 -->
+    <polygon points="-40,360 130,250 300,360" fill="url(#roofB)"/>
+    <rect x="30" y="360" width="220" height="200" fill="#5a3d2e"/>
+    <!-- house 2 -->
+    <polygon points="220,370 400,255 580,370" fill="url(#roofA)"/>
+    <rect x="270" y="370" width="240" height="190" fill="#4d3325"/>
+    <!-- house 3 -->
+    <polygon points="520,360 690,250 860,360" fill="url(#roofC)"/>
+    <rect x="560" y="360" width="230" height="200" fill="#634636"/>
+    <!-- house 4 -->
+    <polygon points="800,372 970,262 1140,372" fill="url(#roofB)"/>
+    <rect x="850" y="372" width="240" height="188" fill="#523827"/>
+    <!-- house 5 (edge) -->
+    <polygon points="1080,362 1240,258 1400,362" fill="url(#roofA)"/>
+    <rect x="1130" y="362" width="220" height="198" fill="#472f22"/>
+  </g>
+
+  <!-- Shingle courses (subtle horizontal lines across the nearest roof faces) -->
+  <g stroke="#2e1e16" stroke-width="2" opacity="0.18">
+    <line x1="240" y1="300" x2="560" y2="300"/>
+    <line x1="255" y1="320" x2="545" y2="320"/>
+    <line x1="270" y1="340" x2="530" y2="340"/>
+    <line x1="560" y1="300" x2="820" y2="300"/>
+    <line x1="575" y1="322" x2="805" y2="322"/>
+  </g>
+
+  <!-- Foreground shingle texture band -->
+  <rect x="0" y="470" width="1200" height="90" fill="#3a271d"/>
+  <g fill="#4a3327">
+    <rect x="0" y="470" width="60" height="30"/>
+    <rect x="120" y="470" width="60" height="30"/>
+    <rect x="240" y="470" width="60" height="30"/>
+    <rect x="360" y="470" width="60" height="30"/>
+    <rect x="480" y="470" width="60" height="30"/>
+    <rect x="600" y="470" width="60" height="30"/>
+    <rect x="720" y="470" width="60" height="30"/>
+    <rect x="840" y="470" width="60" height="30"/>
+    <rect x="960" y="470" width="60" height="30"/>
+    <rect x="1080" y="470" width="60" height="30"/>
+    <rect x="60" y="500" width="60" height="30"/>
+    <rect x="180" y="500" width="60" height="30"/>
+    <rect x="300" y="500" width="60" height="30"/>
+    <rect x="420" y="500" width="60" height="30"/>
+    <rect x="540" y="500" width="60" height="30"/>
+    <rect x="660" y="500" width="60" height="30"/>
+    <rect x="780" y="500" width="60" height="30"/>
+    <rect x="900" y="500" width="60" height="30"/>
+    <rect x="1020" y="500" width="60" height="30"/>
+    <rect x="1140" y="500" width="60" height="30"/>
+  </g>
+</svg>

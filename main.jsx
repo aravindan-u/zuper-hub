@@ -5,6 +5,7 @@ import { ZuperShell } from "./zuper-shell.jsx";
 import OnboardingApp from "./onboarding/OnboardingApp.jsx";
 import LeadHubOnboardingApp from "./onboarding/LeadHubOnboardingApp.jsx";
 import LoginFirstOnboardingApp from "./onboarding/LoginFirstOnboardingApp.jsx";
+import HomeAfterOnboarding from "./home-after-onboarding.jsx";
 
 // Simple hash router. Opening the link lands on the product home page; the
 // setup flow lives at #/setup, and the other onboarding options keep their routes.
@@ -16,10 +17,15 @@ function Root() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
-  const toHome = () => { window.location.hash = "#/"; };
+  // After onboarding, land on the new sidebar-less homepage (#/home) rather than
+  // the full product shell.
+  const toHome = () => { window.location.hash = "#/home"; };
 
   if (hash === "#/setup") {
     return <LoginFirstOnboardingApp onExit={toHome} />;
+  }
+  if (hash === "#/home") {
+    return <HomeAfterOnboarding />;
   }
   if (hash === "#/onboarding") {
     return <OnboardingApp onExit={toHome} />;
