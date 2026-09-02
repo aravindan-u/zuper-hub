@@ -9,7 +9,7 @@ import { SetupJourney } from "./home-page.jsx";
 import { T, Modal, GlobalStyle, LogoMark } from "./onboarding/ui.jsx";
 import {
   Search, Bell, HelpCircle, LifeBuoy, MessageCircle, CalendarClock,
-  Bot, Ticket, Compass, Send, ArrowRight, PartyPopper, ChevronRight, PlayCircle,
+  Bot, Ticket, Compass, Send, ArrowRight, PartyPopper, ChevronRight, PlayCircle, Sparkles,
 } from "lucide-react";
 
 // ─── Neutral, minimal design tokens (black primary + outline everywhere else) ─
@@ -94,6 +94,9 @@ export default function HomeAfterOnboarding() {
           </div>
         </header>
 
+        {/* ── Ask Zuper: an AI prompt box to learn, set up, and configure ── */}
+        <AskZuper firstName={firstName} />
+
         {/* ── Row 1: the onboarding widget spans the full dashboard width ── */}
         <SetupJourney prog={prog} onStartMigration={onStartMigration} />
 
@@ -133,6 +136,85 @@ export default function HomeAfterOnboarding() {
 
       <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
       <CeoModal open={ceoOpen} onClose={() => setCeoOpen(false)} firstName={firstName} />
+    </div>
+  );
+}
+
+// ─── Ask Zuper — prompt box to learn, set up, and configure the workspace ────
+const ASK_SUGGESTIONS = [
+  "Create my first job",
+  "Set up online payments",
+  "Configure job statuses",
+  "Invite my team",
+  "Connect QuickBooks",
+];
+
+function AskZuper({ firstName }) {
+  const [q, setQ] = useState("");
+  const [asked, setAsked] = useState(null);
+  const [focus, setFocus] = useState(false);
+  const ask = (text) => {
+    const t = (text ?? q).trim();
+    if (!t) return;
+    setAsked(t);
+    setQ("");
+  };
+  return (
+    <div style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 18, padding: "22px 24px 20px", marginBottom: 20, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: INK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Sparkles size={19} />
+        </div>
+        <div>
+          <div style={{ fontSize: 16.5, fontWeight: 800, color: INK, lineHeight: 1.2 }}>Ask Zuper</div>
+          <div style={{ fontSize: 13.5, color: T.textSec, marginTop: 2 }}>Understand, set up, or configure anything in your workspace — just ask.</div>
+        </div>
+      </div>
+
+      {/* Prompt input */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1.5px solid ${focus ? INK : "#E4E3E1"}`, borderRadius: 12, padding: "6px 6px 6px 14px", transition: "border-color 130ms ease" }}>
+        <Sparkles size={17} color={T.textMut} style={{ flexShrink: 0 }} />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setFocus(false)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); ask(); } }}
+          placeholder="How do I create a job, set up payments, configure statuses…"
+          style={{ flex: 1, border: "none", outline: "none", fontFamily: T.font, fontSize: 15, color: T.text, background: "transparent", minWidth: 0 }}
+        />
+        <PrimaryBtn onClick={() => ask()} IconR={ArrowRight}>Ask</PrimaryBtn>
+      </div>
+
+      {/* Suggestion chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+        {ASK_SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            onClick={() => ask(s)}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#ECECEA")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = TILE_BG)}
+            style={{ border: "none", background: TILE_BG, color: T.textSec, borderRadius: 999, padding: "7px 13px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: T.font, transition: "background 120ms ease" }}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Mock answer (prototype — canned, no backend) */}
+      {asked && (
+        <div style={{ marginTop: 16, background: TILE_BG, borderRadius: 12, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 800, color: INK }}>
+            <Sparkles size={14} /> Zuper
+          </div>
+          <div style={{ fontSize: 13.5, color: T.textSec, lineHeight: 1.6, marginTop: 7 }}>
+            Here's how to <strong style={{ color: INK, fontWeight: 700 }}>{asked.toLowerCase()}</strong>{firstName && firstName !== "there" ? `, ${firstName}` : ""}. I've pulled the exact steps for your workspace — open the guide to walk through it, or I can set it up with you.
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 13 }}>
+            <PrimaryBtn onClick={() => {}} IconR={ArrowRight}>Show me how</PrimaryBtn>
+            <OutlineBtn onClick={() => setAsked(null)}>Ask something else</OutlineBtn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

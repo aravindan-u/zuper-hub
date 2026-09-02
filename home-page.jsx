@@ -361,56 +361,56 @@ function PhaseGettingStarted({ prog, totalPct, onStartMigration, cardStatus = "n
 }
 
 // Phase 2 — review the generated setup, then create a real job + proposal.
-const REVIEW_ITEMS = [
-  { icon: "✅", name: "Checklist", desc: "Job checklists per category" },
-  { icon: "📋", name: "Inspection form", desc: "On-site capture fields" },
-  { icon: "🗂️", name: "Tasks", desc: "Standard task templates" },
-  { icon: "🏷️", name: "Job categories", desc: "Generated from your services" },
-  { icon: "🚦", name: "Status", desc: "Pipeline stages & statuses" },
-  { icon: "🏗️", name: "Players", desc: "Suppliers & distributors you buy through" },
-  { icon: "📦", name: "Service package", desc: "Bundled services & pricing" },
-  { icon: "📄", name: "Proposal Templates", desc: "Built from your sample" },
-  { icon: "🧮", name: "CPQ", desc: "Quote configuration rules" },
+// Grouped instead of 9 separate cards, so it reads as "here's what's ready"
+// rather than a wall of to-dos.
+const REVIEW_GROUPS = [
+  { label: "Work", items: ["Job categories", "Statuses", "Checklists", "Inspection forms", "Tasks"] },
+  { label: "Catalog & pricing", items: ["Suppliers & distributors", "Service packages", "Quoting rules"] },
+  { label: "Proposal", items: ["Templates from your sample"] },
 ];
 
 function PhaseReview() {
   return (
     <div>
-      <p style={{ fontSize: 14, color: TEXT_SEC, lineHeight: 1.5, margin: "0 0 18px" }}>
-        Review everything Zuper generated for you. Your goal in this phase: turn a sample into a
-        <strong style={{ color: TEXT_PRIMARY }}> real job and a real proposal</strong>.
+      <p style={{ fontSize: 14, color: TEXT_SEC, lineHeight: 1.5, margin: "0 0 16px" }}>
+        Zuper built your workspace from your setup. Skim what's ready, then go live.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
-        {REVIEW_ITEMS.map((item) => (
-          <div key={item.name} style={{ display: "flex", alignItems: "center", gap: 12, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "12px 14px", background: "#FCFCFB" }}>
-            <span style={{ fontSize: 20, width: 34, textAlign: "center" }}>{item.icon}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_PRIMARY }}>{item.name}</div>
-              <div style={{ fontSize: 12, color: TEXT_SEC, marginTop: 1 }}>{item.desc}</div>
+
+      {/* One tidy card: everything generated, grouped and confirmed */}
+      <div style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 14, background: "#fff", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderBottom: `1px solid ${CARD_LINE}` }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: TEXT_PRIMARY }}>Generated for you</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 800, color: GREEN, background: "#EBFAEF", borderRadius: 999, padding: "3px 10px" }}>
+            <Check size={12} /> Ready to review
+          </span>
+        </div>
+        {REVIEW_GROUPS.map((g, i) => (
+          <div key={g.label} style={{ display: "grid", gridTemplateColumns: "132px 1fr", gap: 14, alignItems: "start", padding: "13px 16px", borderTop: i === 0 ? "none" : `1px solid ${CARD_LINE}` }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: TEXT_MUT, paddingTop: 3 }}>{g.label}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {g.items.map((item) => (
+                <span key={item} style={{ fontSize: 12.5, fontWeight: 600, color: TEXT_PRIMARY, background: NEUTRAL_TILE, borderRadius: 8, padding: "5px 10px" }}>{item}</span>
+              ))}
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: INK, whiteSpace: "nowrap", cursor: "pointer" }}>Review →</span>
           </div>
         ))}
+        <div style={{ padding: "11px 16px", borderTop: `1px solid ${CARD_LINE}`, textAlign: "right" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: INK, cursor: "pointer" }}>Review details →</span>
+        </div>
       </div>
 
-      {/* Goal callout */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 18, background: "linear-gradient(120deg, #FEF3EB, #FFF9F4)", border: "1px solid #F4D9C8", borderRadius: 12, padding: "14px 18px" }}>
-        <div style={{ flex: 1 }}>
+      {/* Single, neutral go-live row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, background: "#FAFAF9", border: `1px solid ${CARD_LINE}`, borderRadius: 12, padding: "14px 18px" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14.5, fontWeight: 800, color: TEXT_PRIMARY }}>Ready to go live?</div>
-          <div style={{ fontSize: 13, color: TEXT_SEC, marginTop: 2 }}>Once your setup looks right, create your first real job and proposal.</div>
+          <div style={{ fontSize: 13, color: TEXT_SEC, marginTop: 2 }}>Turn your sample into a real job and proposal.</div>
         </div>
         <button style={pillBtn(false)}>Create a job</button>
         <button style={pillBtn(true)}>Create a proposal</button>
       </div>
 
-      {/* Team invite — surfaced only after the proposal, pre-filled from job data */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12, border: `1px dashed ${BORDER}`, borderRadius: 12, padding: "14px 18px", background: "#fff" }}>
-        <span style={{ fontSize: 20 }}>👥</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: TEXT_PRIMARY }}>Invite your team <span style={{ fontSize: 11.5, fontWeight: 700, color: TEXT_MUT }}>· after your first proposal</span></div>
-          <div style={{ fontSize: 13, color: TEXT_SEC, marginTop: 2 }}>We've pre-filled your team from your job data — no re-entry. Invite them when you're ready.</div>
-        </div>
-        <button style={pillBtn(false)}>Review &amp; invite</button>
+      <div style={{ fontSize: 12.5, color: TEXT_MUT, marginTop: 12, paddingLeft: 2 }}>
+        Team invites unlock after your first proposal — pre-filled from your job data, no re-entry.
       </div>
     </div>
   );

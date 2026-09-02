@@ -208,8 +208,8 @@ class OnboardingErrorBoundary extends React.Component {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div style={{ minHeight: "100vh", background: "#050505", color: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: T.font }}>
-        <div style={{ width: "100%", maxWidth: 620, border: "1px solid #333", borderRadius: 16, background: "#171717", padding: 24 }}>
+      <div style={{ minHeight: "100vh", background: "#EBE1D3", color: "#17202E", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: T.font }}>
+        <div style={{ width: "100%", maxWidth: 620, border: "1px solid #EDE7DD", borderRadius: 16, background: "#FFFFFF", padding: 24 }}>
           <h1 style={{ ...h1, fontSize: 24 }}>Onboarding hit an error</h1>
           <p style={{ ...p, marginBottom: 16 }}>Refresh the page to restart the prototype. Error detail:</p>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#ffb4a1", background: "#241414", border: "1px solid #4a2424", borderRadius: 12, padding: 14, fontSize: 12 }}>{String(this.state.error?.message || this.state.error)}</pre>
@@ -272,7 +272,7 @@ export default function LoginFirstOnboardingApp({ onExit } = {}) {
   return (
     <OnboardingErrorBoundary key={ONBOARDING_SCHEMA_VERSION}>
     <PreviewContext.Provider value={{ data, bucket, migration, selectedHub, wizardStep, mode }}>
-      <div style={{ minHeight: "100vh", background: mode === "product" ? T.canvas : mode === "email" ? "#F8F0EB" : mode === "welcome" ? "#fff" : "#050505", fontFamily: T.font, color: T.text }}>
+      <div style={{ "--z-brand": "#F04E23", "--z-brand-dark": "#D8431C", "--z-brand-bg": "#FDEDE6", minHeight: "100vh", background: mode === "product" ? T.canvas : mode === "email" ? "#F8F0EB" : mode === "welcome" ? "#fff" : "#EBE1D3", fontFamily: T.font, color: T.text }}>
         <GlobalStyle />
         <style>{`
           @keyframes lh-spin { to { transform: rotate(360deg); } }
@@ -420,8 +420,8 @@ function HubPicker({ selectedHub, setSelectedHub, onStartFresh }) {
         {HUBS.map((hub) => (
           <button key={hub.id} onClick={() => setSelectedHub(hub.id)} style={hubTile(selectedHub === hub.id)}>
             <hub.icon size={24} color={selectedHub === hub.id ? T.brand : T.textSec} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#f4f4f4" }}>{hub.label}</span>
-            <span style={{ fontSize: 12.5, color: "#9c9c9c" }}>{hub.phase}</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#17202E" }}>{hub.label}</span>
+            <span style={{ fontSize: 12.5, color: "#94A3B8" }}>{hub.phase}</span>
             {hub.note && <span style={{ marginTop: 8, fontSize: 11, fontWeight: 800, color: T.brand, background: T.brandBg, borderRadius: 20, padding: "3px 9px" }}>{hub.note}</span>}
           </button>
         ))}
@@ -615,9 +615,9 @@ function WebsiteFetchScreen({ data, set, onBack, onNext }) {
               return (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 11, opacity: done ? 1 : 0.45, transition: "opacity .3s ease" }}>
                   {done
-                    ? <CheckCircle2 size={17} color="#5fd18b" style={{ flexShrink: 0 }} />
+                    ? <CheckCircle2 size={17} color="#16A34A" style={{ flexShrink: 0 }} />
                     : <span style={fetchSpinner} />}
-                  <span style={{ color: done ? "#f1f1f1" : "#9a9a9a", fontSize: 14, fontWeight: 800 }}>{label}</span>
+                  <span style={{ color: done ? "#17202E" : "#94A3B8", fontSize: 14, fontWeight: 800 }}>{label}</span>
                 </div>
               );
             })}
@@ -645,10 +645,10 @@ function WebsiteFetchScreen({ data, set, onBack, onNext }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <LogoMark name={data.companyName} src={data.logo} size={46} radius={12} />
               <div style={{ minWidth: 0 }}>
-                <div style={{ color: "#f4f4f4", fontSize: 16, fontWeight: 900 }}>{data.companyName}</div>
-                <div style={{ color: "#9a9a9a", fontSize: 12.5 }}>Found from {normalizeWebsiteHost(websiteUrl)}</div>
+                <div style={{ color: "#17202E", fontSize: 16, fontWeight: 900 }}>{data.companyName}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12.5 }}>Found from {normalizeWebsiteHost(websiteUrl)}</div>
                 {data.companyName === PREFILL_PROFILE.name && (
-                  <div style={{ color: "#8f8f8f", fontSize: 12, marginTop: 3 }}>
+                  <div style={{ color: "#94A3B8", fontSize: 12, marginTop: 3 }}>
                     {PREFILL_PROFILE.serviceArea} · {PREFILL_PROFILE.phone}
                   </div>
                 )}
@@ -657,7 +657,7 @@ function WebsiteFetchScreen({ data, set, onBack, onNext }) {
           )}
           <MultiSelectGroup label="Services you provide" options={WEBSITE_SERVICE_OPTIONS} selected={services} onToggle={(value) => toggleList(services, value, commitServices)} />
           <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
+            <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>Insurance / non-insurance</div>
             <div style={{ display: "grid", gap: 10 }}>
               {INSURANCE_MODES.map((mode) => (
                 <DarkOption key={mode} selected={data.insuranceMode === mode} onClick={() => commitInsuranceMode(mode)} title={mode} />
@@ -677,7 +677,7 @@ function NameScreen({ data, set, onBack, onNext }) {
     <Question group="People and delivery" title="Who are you?" subtitle="These details personalize your Zuper workspace and first-run queue." onBack={onBack}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "end", marginBottom: 14 }} className="lh-grid-2">
         <label style={{ display: "block" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>Company logo</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>Company logo</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <LogoMark name={data.companyName} src={data.logo} size={54} radius={14} />
             <span style={uploadButton}>Upload logo</span>
@@ -692,7 +692,7 @@ function NameScreen({ data, set, onBack, onNext }) {
       </div>
       <div style={{ marginTop: 12 }}><DarkField label="Mobile number" value={data.phone} onChange={(v) => set("phone", v)} placeholder="(555) 123-4567" /></div>
       <div style={{ marginTop: 18 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>Your role</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>Your role</div>
         <div style={{ display: "grid", gap: 10 }}>
           {["IT Admin", "CEO", "Other"].map((role) => (
             <DarkOption key={role} selected={data.role === role} onClick={() => set("role", role)} title={role} />
@@ -721,7 +721,7 @@ function ServicesCoverageScreen({ data, set, onBack, onNext }) {
     <Question group="Work setup" title="Review setup details" subtitle="Review the services Zuper should use for job categories, then mark whether they include insurance work." onBack={onBack}>
       <MultiSelectGroup label="Services you provide" options={WEBSITE_SERVICE_OPTIONS} selected={services} onToggle={(value) => toggleList(services, value, (next) => set("services", next))} />
       <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Insurance / non-insurance</div>
+        <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>Insurance / non-insurance</div>
         <div style={{ display: "grid", gap: 10 }}>
           {INSURANCE_MODES.map((mode) => (
             <DarkOption key={mode} selected={data.insuranceMode === mode} onClick={() => set("insuranceMode", mode)} title={mode} />
@@ -758,8 +758,8 @@ function BusinessSystemScreen({ data, set, onBack, onNext }) {
                   : <Plus size={20} color="#6b7280" />}
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{system.label}</span>
-                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{system.note}</span>
+                <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#17202E" }}>{system.label}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#94A3B8", marginTop: 3 }}>{system.note}</span>
               </span>
             </>
           );
@@ -831,17 +831,17 @@ function MigrationCredentials({ system, connected, onConnected }) {
     return (
       <div style={{ ...darkPanel, borderColor: "rgba(52,168,95,.4)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
-          <CheckCircle2 size={17} color="#5fd18b" />
-          <span style={{ fontSize: 14.5, fontWeight: 900, color: "#f1f1f1" }}>{system.label} connected</span>
+          <CheckCircle2 size={17} color="#16A34A" />
+          <span style={{ fontSize: 14.5, fontWeight: 900, color: "#17202E" }}>{system.label} connected</span>
         </div>
-        <div style={{ fontSize: 12.5, fontWeight: 850, color: "#8f8f8f", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 850, color: "#94A3B8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
           What Zuper will bring over
         </div>
         <div style={{ display: "grid", gap: 7 }}>
           {system.brings.map((item) => (
             <div key={item} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <CheckCircle2 size={14} color="#5fd18b" style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: 13.5, fontWeight: 750, color: "#d8d8d8" }}>{item}</span>
+              <CheckCircle2 size={14} color="#16A34A" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 750, color: "#64748B" }}>{item}</span>
             </div>
           ))}
         </div>
@@ -857,8 +857,8 @@ function MigrationCredentials({ system, connected, onConnected }) {
             const done = index < step;
             return (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 11, opacity: done ? 1 : 0.45, transition: "opacity .3s ease" }}>
-                {done ? <CheckCircle2 size={17} color="#5fd18b" style={{ flexShrink: 0 }} /> : <span style={fetchSpinner} />}
-                <span style={{ color: done ? "#f1f1f1" : "#9a9a9a", fontSize: 14, fontWeight: 800 }}>{label}</span>
+                {done ? <CheckCircle2 size={17} color="#16A34A" style={{ flexShrink: 0 }} /> : <span style={fetchSpinner} />}
+                <span style={{ color: done ? "#17202E" : "#94A3B8", fontSize: 14, fontWeight: 800 }}>{label}</span>
               </div>
             );
           })}
@@ -910,7 +910,7 @@ function BusinessHoursScreen({ data, set, onBack, onNext }) {
             <DarkSelect label="Open" value={data.businessHoursStart} options={TIME_OPTIONS} onChange={(v) => set("businessHoursStart", v)} />
             <DarkSelect label="Close" value={data.businessHoursEnd} options={TIME_OPTIONS} onChange={(v) => set("businessHoursEnd", v)} />
           </div>
-          <div style={{ color: "#9a9a9a", fontSize: 12.5, marginTop: 10 }}>Applies Monday-Friday. You can add weekend and holiday rules later.</div>
+          <div style={{ color: "#94A3B8", fontSize: 12.5, marginTop: 10 }}>Applies Monday-Friday. You can add weekend and holiday rules later.</div>
         </div>
       )}
       <Footer><Btn disabled={!data.businessHours} onClick={onNext} IconR={ArrowRight}>Continue</Btn></Footer>
@@ -1082,15 +1082,15 @@ function MigrationSummaryScreen({ data, set, bucket, onBack, onNext }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <span style={recapIconTile}><RefreshCcw size={16} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#f4f4f4" }}>Transactional data migration</div>
-              <div style={{ fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>Optional — runs in the background after setup.</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#17202E" }}>Transactional data migration</div>
+              <div style={{ fontSize: 12.5, fontWeight: 750, color: "#94A3B8", marginTop: 3 }}>Optional — runs in the background after setup.</div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "14px 0" }}>
             {MIGRATION_PREFILL.transactional.map(([value, label]) => (
               <div key={label} style={recapStatCard}>
-                <div style={{ fontSize: 20, fontWeight: 950, color: "#f4f4f4", lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#8f8f8f", marginTop: 5 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 950, color: "#17202E", lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 800, color: "#94A3B8", marginTop: 5 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -1113,14 +1113,14 @@ function MigrationSummaryScreen({ data, set, bucket, onBack, onNext }) {
 function SummarySection({ section, confirmed, onConfirm, triggerOn, onTrigger }) {
   const SectionIcon = section.icon;
   return (
-    <div style={{ ...darkPanel, borderColor: confirmed ? "rgba(52,168,95,.4)" : "#303030" }}>
+    <div style={{ ...darkPanel, borderColor: confirmed ? "rgba(52,168,95,.4)" : "#EDE7DD" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span style={recapIconTile}><SectionIcon size={16} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 900, color: "#f4f4f4" }}>{section.title}</div>
-          <div style={{ fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{section.note}</div>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#17202E" }}>{section.title}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 750, color: "#94A3B8", marginTop: 3 }}>{section.note}</div>
         </div>
-        <button onClick={onConfirm} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", color: confirmed ? "#5fd18b" : "#dcdcdc" }}>
+        <button onClick={onConfirm} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", color: confirmed ? "#16A34A" : "#64748B" }}>
           {confirmed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
           {confirmed ? "Confirmed" : "Looks right"}
         </button>
@@ -1131,7 +1131,7 @@ function SummarySection({ section, confirmed, onConfirm, triggerOn, onTrigger })
         </div>
       )}
       {onTrigger && (
-        <button onClick={onTrigger} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, color: triggerOn ? "#5fd18b" : "#dcdcdc" }}>
+        <button onClick={onTrigger} style={{ ...darkLink, display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, color: triggerOn ? "#16A34A" : "#64748B" }}>
           <span style={checkBox(triggerOn)}>{triggerOn && "✓"}</span>
           {section.trigger.label}
         </button>
@@ -1235,8 +1235,8 @@ function WelcomeCurtain({ up, onOpen }) {
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(10,6,3,.58) 0%, rgba(10,6,3,.72) 60%, rgba(10,6,3,.9) 100%)" }} />
 
       <div style={{ position: "relative", textAlign: "center", padding: "0 24px", maxWidth: 680 }}>
-        <div style={{ color: "#FFD2BC", fontSize: 12.5, fontWeight: 850, letterSpacing: ".16em", textTransform: "uppercase" }}>
-          Maven Roofing
+        <div style={{ display: "inline-flex", alignItems: "center", background: "#fff", borderRadius: 14, padding: "11px 20px", boxShadow: "0 10px 34px rgba(0,0,0,.34)" }}>
+          <img src="/logo-mavenroof.png" alt="Maven Roofing" style={{ height: 42, width: "auto", display: "block" }} />
         </div>
         <h1 style={{ fontSize: "clamp(40px, 6.4vw, 68px)", lineHeight: 1.04, letterSpacing: "-.035em", fontWeight: 950, color: "#fff", margin: "18px 0 0" }}>
           Welcome to Zuper
@@ -1384,8 +1384,8 @@ function CrmScreen({ data, set, onBack, onNext }) {
                   : <Plus size={20} color="#6b7280" />}
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{system.label}</span>
-                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{system.note}</span>
+                <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#17202E" }}>{system.label}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#94A3B8", marginTop: 3 }}>{system.note}</span>
               </span>
             </>
           );
@@ -1476,8 +1476,8 @@ function ToolsMeasurementScreen({ data, set, onBack, onNext }) {
                 </span>
               )}
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#f4f4f4" }}>{tool.id}</span>
-                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#9a9a9a", marginTop: 3 }}>{tool.note}</span>
+                <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#17202E" }}>{tool.id}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 750, color: "#94A3B8", marginTop: 3 }}>{tool.note}</span>
               </span>
               <span style={checkBox(on)}>{on && "✓"}</span>
             </button>
@@ -1563,8 +1563,8 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
               const done = index < step;
               return (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 11, opacity: done ? 1 : 0.45, transition: "opacity .3s ease" }}>
-                  {done ? <CheckCircle2 size={17} color="#5fd18b" style={{ flexShrink: 0 }} /> : <span style={fetchSpinner} />}
-                  <span style={{ color: done ? "#f1f1f1" : "#9a9a9a", fontSize: 14, fontWeight: 800 }}>{label}</span>
+                  {done ? <CheckCircle2 size={17} color="#16A34A" style={{ flexShrink: 0 }} /> : <span style={fetchSpinner} />}
+                  <span style={{ color: done ? "#17202E" : "#94A3B8", fontSize: 14, fontWeight: 800 }}>{label}</span>
                 </div>
               );
             })}
@@ -1587,12 +1587,12 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
       {!migrating && (
         <div style={{ ...darkPanel, marginBottom: 14 }}>
           <div style={{ ...cardTitle, marginBottom: 4 }}>Fetch from your website</div>
-          <div style={{ fontSize: 12.5, color: "#9a9a9a", marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: "#94A3B8", marginBottom: 14 }}>
             We'll read your business name, logo, and the services you offer. You can edit everything after.
           </div>
           <div style={{ display: "flex", gap: 8 }} className="lh-grid-2">
-            <div style={{ display: "flex", alignItems: "center", gap: 9, flex: 1, background: "#101010", border: "1px solid #303030", borderRadius: 10, padding: "0 12px" }}>
-              <Globe size={16} color="#8f8f8f" style={{ flexShrink: 0 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 9, flex: 1, background: "#FBF8F3", border: "1px solid #EDE7DD", borderRadius: 10, padding: "0 12px" }}>
+              <Globe size={16} color="#94A3B8" style={{ flexShrink: 0 }} />
               <input
                 value={siteDraft}
                 placeholder="yourroofingco.com"
@@ -1610,12 +1610,12 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, background: "rgba(52,168,95,.08)", border: "1px solid rgba(52,168,95,.4)", borderRadius: 10, padding: "12px 14px" }}>
               <LogoMark name={data.companyName} src={data.logo || undefined} size={40} radius={10} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: "#f1f1f1", fontSize: 14.5, fontWeight: 850 }}>{data.companyName || "Your business"}</div>
-                <div style={{ color: "#9a9a9a", fontSize: 12.5, marginTop: 2 }}>
+                <div style={{ color: "#17202E", fontSize: 14.5, fontWeight: 850 }}>{data.companyName || "Your business"}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12.5, marginTop: 2 }}>
                   Fetched from {normalizeWebsiteHost(data.websiteUrl) || "your website"} · services below are pre-selected
                 </div>
               </div>
-              <CheckCircle2 size={18} color="#5fd18b" style={{ flexShrink: 0 }} />
+              <CheckCircle2 size={18} color="#16A34A" style={{ flexShrink: 0 }} />
             </div>
           )}
         </div>
@@ -1625,7 +1625,7 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
           <div style={{ ...cardTitle, marginBottom: 0 }}>Services you provide</div>
           {(autoFilled || (!migrating && data.websiteFetched)) && (
-            <span style={{ ...summaryChip, borderColor: "rgba(52,168,95,.45)", color: "#7ee2a2" }}>Auto-filled</span>
+            <span style={{ ...summaryChip, borderColor: "rgba(52,168,95,.45)", color: "#16A34A" }}>Auto-filled</span>
           )}
         </div>
 
@@ -1640,7 +1640,7 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
               );
             })}
             {!addingService && (
-              <button onClick={openAddMore} style={{ ...chipButton(false), borderStyle: "dashed", color: "#dcdcdc" }}>
+              <button onClick={openAddMore} style={{ ...chipButton(false), borderStyle: "dashed", color: "#64748B" }}>
                 <Plus size={15} style={{ marginRight: 2 }} />Add more
               </button>
             )}
@@ -1662,7 +1662,7 @@ function MigrateDataScreen({ data, set, onBack, onNext }) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Do you do insurance work?</div>
+          <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>Do you do insurance work?</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} className="lh-grid-2">
             {[["Yes", "Insurance work"], ["No", "Non-insurance work"]].map(([label, mode]) => (
               <DarkOption
@@ -1704,24 +1704,24 @@ function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
       onBack={onBack}
     >
       <div style={darkPanel}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", paddingBottom: 12, borderBottom: "1px solid #303030" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", paddingBottom: 12, borderBottom: "1px solid #EDE7DD" }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 850 }}>You</div>
-            <div style={{ color: "#9a9a9a", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ color: "#17202E", fontSize: 13.5, fontWeight: 850 }}>You</div>
+            <div style={{ color: "#94A3B8", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {textOf(data.email) || "sam@mavenroof.com"}
             </div>
           </div>
-          <span style={{ ...summaryChip, borderColor: "#3a3a3a" }}>Admin</span>
+          <span style={{ ...summaryChip, borderColor: "#EDE7DD" }}>Admin</span>
         </div>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
           {teammates.length === 0 && (
-            <div style={{ color: "#8f8f8f", fontSize: 13, fontWeight: 750 }}>No other users yet — add anyone who should have access.</div>
+            <div style={{ color: "#94A3B8", fontSize: 13, fontWeight: 750 }}>No other users yet — add anyone who should have access.</div>
           )}
           {teammates.map((member, index) => (
             <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center" }}>
-              <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{member.email}</div>
-              <span style={{ ...summaryChip, borderColor: "#333" }}>{member.role}</span>
+              <div style={{ color: "#17202E", fontSize: 13.5, fontWeight: 800, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{member.email}</div>
+              <span style={{ ...summaryChip, borderColor: "#EDE7DD" }}>{member.role}</span>
               <button onClick={() => removeTeammate(index)} style={darkMutedLink}>Remove</button>
             </div>
           ))}
@@ -1730,7 +1730,7 @@ function TeamConfirmScreen({ data, set, bucket, onBack, onNext }) {
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr", gap: 12, marginTop: 16 }} className="lh-grid-2">
           <DarkField label="Email" value={data.invitedEmail} onChange={(v) => set("invitedEmail", v)} placeholder="teammate@roofingco.com" />
           <label style={{ display: "block" }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#ddd", marginBottom: 8 }}>Role</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>Role</div>
             <select value={data.invitedRole} onChange={(e) => set("invitedRole", e.target.value)} style={darkInput}>
               {INVITE_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
@@ -1776,8 +1776,8 @@ function ProposalSetupScreen({ data, set, onBack, onNext }) {
 
         {data.proposalFileName ? (
           <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 14 }}>
-            <CheckCircle2 size={16} color="#5fd18b" />
-            <span style={{ fontSize: 13.5, fontWeight: 800, color: "#d8d8d8" }}>
+            <CheckCircle2 size={16} color="#16A34A" />
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: "#64748B" }}>
               Zuper will build your proposal template from this file.
             </span>
           </div>
@@ -1811,10 +1811,10 @@ function CardOnFileScreen({ data, set, onBack, onNext }) {
       <Question group="Billing" title="Card on file" subtitle="You are all set — we will not charge anything during your trial." onBack={onBack}>
         <div style={{ ...darkPanel, borderColor: "rgba(52,168,95,.4)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <CheckCircle2 size={17} color="#5fd18b" />
-            <span style={{ fontSize: 14.5, fontWeight: 900, color: "#f1f1f1" }}>Card saved</span>
+            <CheckCircle2 size={17} color="#16A34A" />
+            <span style={{ fontSize: 14.5, fontWeight: 900, color: "#17202E" }}>Card saved</span>
           </div>
-          <div style={{ color: "#9a9a9a", fontSize: 13, marginTop: 8 }}>Billing starts only when your trial ends. Remove it any time in Settings.</div>
+          <div style={{ color: "#94A3B8", fontSize: 13, marginTop: 8 }}>Billing starts only when your trial ends. Remove it any time in Settings.</div>
         </div>
         <Footer><Btn onClick={onNext} IconR={ArrowRight}>Continue</Btn></Footer>
       </Question>
@@ -1864,7 +1864,7 @@ function InventoryScreen({ data, set, onBack, onNext }) {
       subtitle="Connect the suppliers you buy through, then pick the manufacturers you install. Zuper builds your parts catalog from both."
       onBack={onBack}
     >
-      <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Who are the suppliers you connect with?</div>
+      <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>Who are the suppliers you connect with?</div>
       <div style={hintRow}>
         <Lightbulb size={15} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Connect one or more suppliers to pull in their catalog without linking products individually.</span>
@@ -1879,11 +1879,11 @@ function InventoryScreen({ data, set, onBack, onNext }) {
           />
         ))}
       </div>
-      <div style={{ borderTop: "1px solid #2a2a2a", margin: "18px 0 0", paddingTop: 14 }}>
+      <div style={{ borderTop: "1px solid #EDE7DD", margin: "18px 0 0", paddingTop: 14 }}>
         <button style={darkLink}>Import parts using a CSV file instead</button>
       </div>
 
-      <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", margin: "26px 0 10px" }}>Who are the manufacturers you work with?</div>
+      <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", margin: "26px 0 10px" }}>Who are the manufacturers you work with?</div>
       <div style={{ display: "grid", gap: 10 }}>
         {MANUFACTURER_CATALOG.map((manufacturer) => (
           <ManufacturerCard
@@ -1907,7 +1907,7 @@ function SupplierCard({ supplier, selected, onToggle }) {
     <button onClick={onToggle} style={darkOption(selected)}>
       <span style={radioMark(selected)}>{selected && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111" }} />}</span>
       <BrandTile label={supplier.short} tone={supplier.tone} />
-      <span style={{ flex: 1, fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{supplier.id}</span>
+      <span style={{ flex: 1, fontSize: 16, fontWeight: 850, color: "#17202E" }}>{supplier.id}</span>
     </button>
   );
 }
@@ -1917,12 +1917,12 @@ function ManufacturerCard({ manufacturer, connectedShorts, selected, onToggle })
     <button onClick={onToggle} style={darkOption(selected)}>
       <BrandTile label={manufacturer.short} tone={manufacturer.tone} filled />
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#f4f4f4" }}>{manufacturer.id}</span>
+        <span style={{ display: "block", fontSize: 15.5, fontWeight: 850, color: "#17202E" }}>{manufacturer.id}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap", fontSize: 12, fontWeight: 800 }}>
           {manufacturer.carriers.map((short, index) => (
             <React.Fragment key={short}>
               {index > 0 && <span style={{ color: "#5a5a5a" }}>·</span>}
-              <span style={{ color: connectedShorts.includes(short) ? "#d8d8d8" : "#6b6b6b" }}>{short}</span>
+              <span style={{ color: connectedShorts.includes(short) ? "#64748B" : "#6b6b6b" }}>{short}</span>
             </React.Fragment>
           ))}
         </span>
@@ -1998,7 +1998,7 @@ function CPQImportScreen({ data, set, onBack, onNext }) {
           <span>{data.cpqFileName || "Drop a PDF, DOCX, XLSX, XLS, or CSV file, or click to browse"}</span>
           <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => completeWithFile(e.target.files?.[0])} />
         </label>
-        <div style={{ color: "#9a9a9a", fontSize: 13, lineHeight: 1.45, marginTop: 12 }}>
+        <div style={{ color: "#94A3B8", fontSize: 13, lineHeight: 1.45, marginTop: 12 }}>
           Zuper will use this to create starter products, service masters, price rows, and quoting templates.
         </div>
       </div>
@@ -2025,8 +2025,8 @@ function InviteScreen({ data, set, onBack, onNext }) {
     <Question group="People and delivery" title="Invite teammates" subtitle="Add anyone who should help with sales, inspections, production, dispatch, or finance. This is optional." onBack={onBack}>
       <div style={{ ...darkPanel, marginBottom: 18, display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 850 }}>You</div>
-          <div style={{ color: "#9a9a9a", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{textOf(data.email) || "Workspace owner"}</div>
+          <div style={{ color: "#17202E", fontSize: 13.5, fontWeight: 850 }}>You</div>
+          <div style={{ color: "#94A3B8", fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{textOf(data.email) || "Workspace owner"}</div>
         </div>
         <select value={data.role || "Admin"} onChange={(e) => set("role", e.target.value)} style={{ ...darkInput, width: "auto", minWidth: 140 }}>
           {INVITE_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
@@ -2035,7 +2035,7 @@ function InviteScreen({ data, set, onBack, onNext }) {
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr", gap: 12 }} className="lh-grid-2">
         <DarkField label="Email" value={data.invitedEmail} onChange={(v) => set("invitedEmail", v)} placeholder="teammate@roofingco.com" />
         <label style={{ display: "block" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#ddd", marginBottom: 8 }}>Role</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>Role</div>
           <select value={data.invitedRole} onChange={(e) => set("invitedRole", e.target.value)} style={darkInput}>
             {INVITE_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
           </select>
@@ -2048,10 +2048,10 @@ function InviteScreen({ data, set, onBack, onNext }) {
       {teammates.length > 0 && (
         <div style={{ ...darkPanel, marginTop: 16, display: "grid", gap: 8 }}>
           {teammates.map((member, index) => (
-            <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", borderBottom: index < teammates.length - 1 ? "1px solid #303030" : "none", paddingBottom: index < teammates.length - 1 ? 8 : 0 }}>
+            <div key={`${member.email}-${index}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", borderBottom: index < teammates.length - 1 ? "1px solid #EDE7DD" : "none", paddingBottom: index < teammates.length - 1 ? 8 : 0 }}>
               <div>
-                <div style={{ color: "#f1f1f1", fontSize: 13.5, fontWeight: 850 }}>{member.email}</div>
-                <div style={{ color: "#9a9a9a", fontSize: 12 }}>{member.role}</div>
+                <div style={{ color: "#17202E", fontSize: 13.5, fontWeight: 850 }}>{member.email}</div>
+                <div style={{ color: "#94A3B8", fontSize: 12 }}>{member.role}</div>
               </div>
               <button onClick={() => removeTeammate(index)} style={darkMutedLink}>Remove</button>
             </div>
@@ -2077,7 +2077,7 @@ function PlatformQuestionsScreen({ data, set, onBack, onNext }) {
     <Question group="Platforms" title="Which platforms should connect to Zuper?" subtitle="Tell us about finance, CRM, and communication tools so the workspace starts with the right extension plan." onBack={onBack}>
       <MultiSelectGroup label="Integrations" options={PLATFORM_INTEGRATIONS} selected={integrations} onToggle={toggleIntegration} />
       <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>Do you have an existing communication platform?</div>
+        <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>Do you have an existing communication platform?</div>
         <div style={{ display: "grid", gap: 10 }}>
           {COMMUNICATION_PLATFORMS.map((platform) => (
             <DarkOption key={platform} selected={data.communicationPlatform === platform} onClick={() => set("communicationPlatform", platform)} title={platform} />
@@ -2133,8 +2133,8 @@ function RecapScreen({ data, bucket, onBack, onCreateJob }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "16px 0 18px" }}>
         {stats.map(([value, label]) => (
           <div key={label} style={recapStatCard}>
-            <div style={{ fontSize: 24, fontWeight: 950, color: "#f4f4f4", lineHeight: 1 }}>{value}</div>
-            <div style={{ fontSize: 11.5, fontWeight: 800, color: "#8f8f8f", marginTop: 6 }}>{label}</div>
+            <div style={{ fontSize: 24, fontWeight: 950, color: "#17202E", lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: "#94A3B8", marginTop: 6 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -2152,8 +2152,8 @@ function RecapCard({ icon: RowIcon, label, value }) {
     <div style={recapCard}>
       <span style={recapIconTile}><RowIcon size={17} /></span>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 900, color: "#8f8f8f", textTransform: "uppercase", letterSpacing: ".09em" }}>{label}</div>
-        <div style={{ fontSize: 14.5, fontWeight: 800, color: "#f1f1f1", lineHeight: 1.5, marginTop: 5, wordBreak: "break-word" }}>{value}</div>
+        <div style={{ fontSize: 11, fontWeight: 900, color: "#94A3B8", textTransform: "uppercase", letterSpacing: ".09em" }}>{label}</div>
+        <div style={{ fontSize: 14.5, fontWeight: 800, color: "#17202E", lineHeight: 1.5, marginTop: 5, wordBreak: "break-word" }}>{value}</div>
       </div>
     </div>
   );
@@ -2291,7 +2291,7 @@ function SetupDashboard({ data, bucket, onExit }) {
           </div>
         </header>
         <section style={{ maxWidth: 920, margin: "0 auto" }}>
-          <h1 style={{ fontSize: 42, lineHeight: 1.08, fontWeight: 950, color: "#171717", margin: 0, textAlign: "center" }}>Finish setting up Zuper</h1>
+          <h1 style={{ fontSize: 42, lineHeight: 1.08, fontWeight: 950, color: "#FFFFFF", margin: 0, textAlign: "center" }}>Finish setting up Zuper</h1>
           <p style={{ fontSize: 18, lineHeight: 1.45, color: "#4b5563", margin: "18px auto 36px", maxWidth: 700, textAlign: "center" }}>
             We have preloaded the configurations based on your preferences. Before you can set up your first job, review below.
           </p>
@@ -2422,8 +2422,8 @@ function GroupHeader({ active, groups = ONBOARDING_GROUPS }) {
 
 function ShellCard({ width = 640, children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#050505", display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 20px" }}>
-      <div className="su lh-shell" style={{ width: "100%", maxWidth: 1320, minHeight: 760, borderRadius: 20, border: "1px solid #242424", background: "#171717", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, .9fr)", overflow: "hidden", boxShadow: "0 30px 90px rgba(0,0,0,.45)" }}>
+    <div style={{ minHeight: "100vh", background: "#EBE1D3", display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 20px" }}>
+      <div className="su lh-shell" style={{ width: "100%", maxWidth: 1320, minHeight: 760, borderRadius: 20, border: "1px solid #EDE7DD", background: "#FFFFFF", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, .9fr)", overflow: "hidden", boxShadow: "0 24px 70px rgba(40,26,10,.10)" }}>
         <div style={{ padding: "86px 72px 68px", display: "flex", flexDirection: "column" }}>
           <div style={{ width: "100%", maxWidth: width, flex: 1 }}>{children}</div>
         </div>
@@ -2448,7 +2448,7 @@ function Footer({ children }) {
 }
 
 function Back({ onClick }) {
-  return <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#a1a1a1", fontSize: 14, cursor: "pointer", marginBottom: 18 }}><ArrowLeft size={16} /> Back</button>;
+  return <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#64748B", fontSize: 14, cursor: "pointer", marginBottom: 18 }}><ArrowLeft size={16} /> Back</button>;
 }
 
 function ExitButton({ onClick }) {
@@ -2488,7 +2488,7 @@ function Info({ label, value }) {
 }
 
 function InfoDark({ label, value }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13.5 }}><span style={{ color: "#9a9a9a" }}>{label}</span><strong style={{ color: "#f1f1f1", textAlign: "right" }}>{value}</strong></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13.5 }}><span style={{ color: "#94A3B8" }}>{label}</span><strong style={{ color: "#17202E", textAlign: "right" }}>{value}</strong></div>;
 }
 
 function TrackerDot({ label, active }) {
@@ -2507,7 +2507,7 @@ function SmallAction({ icon: IconComp, children }) {
 function DarkField({ label, value, onChange, placeholder, type = "text", maxLength }) {
   return (
     <label style={{ display: "block" }}>
-      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>{label}</div>}
+      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>{label}</div>}
       <input
         value={value}
         type={type}
@@ -2523,7 +2523,7 @@ function DarkField({ label, value, onChange, placeholder, type = "text", maxLeng
 function DarkSelect({ label, value, options, onChange }) {
   return (
     <label style={{ display: "block" }}>
-      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#d8d8d8", marginBottom: 8 }}>{label}</div>}
+      {label && <div style={{ fontSize: 13, fontWeight: 800, color: "#64748B", marginBottom: 8 }}>{label}</div>}
       <select value={value} onChange={(e) => onChange(e.target.value)} style={darkInput}>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -2536,8 +2536,8 @@ function DarkOption({ selected, onClick, title, desc }) {
     <button onClick={onClick} style={darkOption(selected)}>
       <span style={radioMark(selected)}>{selected && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#111" }} />}</span>
       <span style={{ flex: 1 }}>
-        <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#f4f4f4" }}>{title}</span>
-        {desc && <span style={{ display: "block", fontSize: 12.5, color: "#9a9a9a", marginTop: 3 }}>{desc}</span>}
+        <span style={{ display: "block", fontSize: 16, fontWeight: 850, color: "#17202E" }}>{title}</span>
+        {desc && <span style={{ display: "block", fontSize: 12.5, color: "#94A3B8", marginTop: 3 }}>{desc}</span>}
       </span>
     </button>
   );
@@ -2546,7 +2546,7 @@ function DarkOption({ selected, onClick, title, desc }) {
 function MultiSelectGroup({ label, options, selected, onToggle }) {
   return (
     <div style={{ marginTop: 18 }}>
-      <div style={{ fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 }}>{label}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
         {options.map((option) => {
           const active = selected.includes(option);
@@ -2566,7 +2566,7 @@ function FoundItem({ children }) {
 }
 
 function UploadIcon() {
-  return <span style={{ width: 30, height: 30, borderRadius: 8, background: "#2a2a2a", color: "#eee", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>+</span>;
+  return <span style={{ width: 30, height: 30, borderRadius: 8, background: "#EDE7DD", color: "#eee", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>+</span>;
 }
 
 function PreviewText({ value, width = 140, size = 14, dim = false }) {
@@ -2575,7 +2575,7 @@ function PreviewText({ value, width = 140, size = 14, dim = false }) {
 }
 
 function SkeletonCircle({ size = 36, radius = "50%" }) {
-  return <span style={{ width: size, height: size, borderRadius: radius, background: "#242424", border: "1px solid #303030", flexShrink: 0 }} />;
+  return <span style={{ width: size, height: size, borderRadius: radius, background: "#F1EBE1", border: "1px solid #EDE7DD", flexShrink: 0 }} />;
 }
 
 // ─── Right pane: only what the current step touches, drawn as real product UI ──
@@ -2992,7 +2992,7 @@ function JobPreview({ step, data, bucket, connected }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, color: "#8a8a8a", fontSize: 12.5, fontWeight: 750 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, color: "#94A3B8", fontSize: 12.5, fontWeight: 750 }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? T.green : "#9CA3AF" }} />
         {connected ? `Live preview · updating from ${source}` : "Live preview"}
       </div>
@@ -3095,7 +3095,7 @@ function CalendarPreview({ data }) {
           return (
             <div key={day} style={{ minHeight: 54, borderRadius: 8, border: `1px solid ${active ? "#fed7aa" : "#e5e7eb"}`, background: active ? "#fff7ed" : "#f1f5f9", padding: 6 }}>
               <div style={{ color: active ? "#9a3412" : "#94a3b8", fontSize: 10, fontWeight: 950, marginBottom: 7 }}>{day}</div>
-              {active ? <div style={{ height: 24, borderRadius: 5, background: "#fd5000", opacity: .9 }} /> : <div style={{ height: 24, borderRadius: 5, background: "#e2e8f0" }} />}
+              {active ? <div style={{ height: 24, borderRadius: 5, background: "var(--z-brand, #FD5000)", opacity: .9 }} /> : <div style={{ height: 24, borderRadius: 5, background: "#e2e8f0" }} />}
             </div>
           );
         })}
@@ -3137,7 +3137,7 @@ function ProposalStylePreview({ data, products, proposal }) {
             {rows.map((row, index) => (
               <div key={row} style={{ display: "grid", gridTemplateColumns: "1fr 42px", gap: 8, alignItems: "center", borderBottom: "1px solid #edf2f7", paddingBottom: 6 }}>
                 <div style={{ color: "#334155", fontSize: 10.5, fontWeight: 850 }}>{row}</div>
-                <div style={{ height: 7, borderRadius: 20, background: index === 0 ? "#fd5000" : "#cbd5e1" }} />
+                <div style={{ height: 7, borderRadius: 20, background: index === 0 ? "var(--z-brand, #FD5000)" : "#cbd5e1" }} />
               </div>
             ))}
           </div>
@@ -3361,7 +3361,7 @@ function setupActionsFor(data, bucket) {
       state: data.cpqFileName ? "Ready" : "To configure",
       cta: "Configure",
       initials: "IQ",
-      accent: "#fd5000",
+      accent: "var(--z-brand, #FD5000)",
       accentBg: "#fff0e8",
     },
   ];
@@ -3489,14 +3489,14 @@ function firstNameFromEmail(email) {
   return word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : "";
 }
 
-const h1 = { fontSize: 30, lineHeight: 1.15, letterSpacing: "-0.02em", fontWeight: 900, color: "#f4f4f4", margin: 0 };
-const p = { fontSize: 15.5, color: "#9c9c9c", lineHeight: 1.55, marginTop: 10, maxWidth: 660 };
+const h1 = { fontSize: 30, lineHeight: 1.15, letterSpacing: "-0.02em", fontWeight: 900, color: "#17202E", margin: 0 };
+const p = { fontSize: 15.5, color: "#94A3B8", lineHeight: 1.55, marginTop: 10, maxWidth: 660 };
 const softNote = { marginTop: 14, background: T.amberBg, border: "1px solid #F3C783", color: T.amber, borderRadius: 12, padding: 12, fontSize: 13.5, lineHeight: 1.45 };
-const groupPill = (active) => ({ display: "inline-flex", alignItems: "center", minHeight: 25, borderRadius: 20, border: `1px solid ${active ? "#f4f4f4" : "#333"}`, background: active ? "#f4f4f4" : "#1d1d1d", color: active ? "#111" : "#9a9a9a", padding: "4px 9px", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" });
+const groupPill = (active) => ({ display: "inline-flex", alignItems: "center", minHeight: 25, borderRadius: 20, border: `1px solid ${active ? "#17202E" : "#EDE7DD"}`, background: active ? "#17202E" : "#FFFFFF", color: active ? "#fff" : "#94A3B8", padding: "4px 9px", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" });
 const hubTile = (active) => ({
   minHeight: 142,
-  background: active ? "#222" : "#181818",
-  border: `1.5px solid ${active ? "#e8e8e8" : "#303030"}`,
+  background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FBF8F3",
+  border: `1.5px solid ${active ? "var(--z-brand, #FD5000)" : "#EDE7DD"}`,
   borderRadius: 14,
   padding: 16,
   display: "flex",
@@ -3511,15 +3511,15 @@ const darkInput = {
   width: "100%",
   minHeight: 48,
   borderRadius: 11,
-  border: "1px solid #383838",
-  background: "#232323",
-  color: "#f2f2f2",
+  border: "1px solid #EDE7DD",
+  background: "#FFFFFF",
+  color: "#17202E",
   padding: "11px 14px",
   outline: "none",
   fontSize: 15,
 };
-const uploadButton = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 38, borderRadius: 10, border: "1px solid #3a3a3a", background: "#232323", color: "#f2f2f2", padding: "0 12px", fontSize: 13.5, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" };
-const previewChip = { display: "inline-flex", width: "fit-content", borderRadius: 20, background: "#242424", color: "#d8d8d8", padding: "5px 9px", fontSize: 11.5, fontWeight: 850 };
+const uploadButton = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 38, borderRadius: 10, border: "1px solid #EDE7DD", background: "#FFFFFF", color: "#17202E", padding: "0 12px", fontSize: 13.5, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" };
+const previewChip = { display: "inline-flex", width: "fit-content", borderRadius: 20, background: "#F1EBE1", color: "#64748B", padding: "5px 9px", fontSize: 11.5, fontWeight: 850 };
 const previewTreeCard = { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, boxShadow: "0 14px 34px rgba(0,0,0,.18)" };
 const previewPanelTitle = { color: "#111827", fontSize: 13, fontWeight: 900, marginBottom: 8 };
 const proposalPage = { border: "1px solid #cbd5e1", background: "#fff", borderRadius: 3, overflow: "hidden", minHeight: 328, boxShadow: "0 12px 24px rgba(15,23,42,.12)" };
@@ -3527,9 +3527,9 @@ const proposalHero = { position: "relative", minHeight: 118, padding: 16, backgr
 const treeNodeRow = { display: "flex", alignItems: "center", gap: 7, minHeight: 24 };
 const treeChildRail = { marginLeft: 19, paddingLeft: 10, borderLeft: "1px solid #e2e8f0", display: "grid", gap: 5, marginTop: 3 };
 const treeStatusRow = { display: "flex", alignItems: "center", gap: 7, minHeight: 21 };
-const treeRow = { border: "1px solid #272727", background: "#141414", borderRadius: 10, padding: 10 };
+const treeRow = { border: "1px solid #EDE7DD", background: "#FFFFFF", borderRadius: 10, padding: 10 };
 const treeColor = { width: 9, height: 9, borderRadius: 2, marginTop: 3 };
-const statusBranch = { position: "relative", display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8, paddingLeft: 11, borderLeft: "1px solid #343434" };
+const statusBranch = { position: "relative", display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8, paddingLeft: 11, borderLeft: "1px solid #EDE7DD" };
 const statusChip = (status) => {
   const lower = status.toLowerCase();
   const bg = lower.includes("new") ? "#d7f8ed" : lower.includes("qual") || lower.includes("scheduled") || lower.includes("filed") || lower.includes("proposal") ? "#dff7f3" : lower.includes("not") ? "#f7dddd" : lower.includes("way") || lower.includes("site") ? "#d9efff" : lower.includes("assumption") ? "#f0e4fa" : "#e5e7eb";
@@ -3537,16 +3537,16 @@ const statusChip = (status) => {
   return { display: "inline-flex", width: "fit-content", maxWidth: 118, borderRadius: 5, background: bg, color, padding: "3px 6px", fontSize: 10, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 };
 const moreStatusChip = { display: "inline-flex", width: "fit-content", borderRadius: 5, background: "#e5e7eb", color: "#64748b", padding: "3px 6px", fontSize: 10, fontWeight: 900 };
-const skeletonLine = (width) => ({ display: "inline-block", width, borderRadius: 20, background: "#303030" });
-const darkPanel = { border: "1px solid #303030", background: "#1d1d1d", borderRadius: 14, padding: 16 };
-const cardTitle = { fontSize: 15, fontWeight: 900, color: "#f4f4f4", marginBottom: 10 };
-const uploadZone = { border: "1px dashed #4a4a4a", background: "#181818", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, color: "#dcdcdc", cursor: "pointer" };
+const skeletonLine = (width) => ({ display: "inline-block", width, borderRadius: 20, background: "#EDE7DD" });
+const darkPanel = { border: "1px solid #EDE7DD", background: "#FFFFFF", borderRadius: 14, padding: 16 };
+const cardTitle = { fontSize: 15, fontWeight: 900, color: "#17202E", marginBottom: 10 };
+const uploadZone = { border: "1px dashed #DCD3C6", background: "#FBF8F3", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, color: "#64748B", cursor: "pointer" };
 const loopRail = { display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0" };
 const loopPill = { borderRadius: 20, padding: "6px 10px", fontSize: 12, fontWeight: 900 };
-const flowBox = { position: "relative", border: "1px solid #3b3b3b", background: "#252525", color: "#f1f1f1", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
-const miniRemove = { marginLeft: 8, border: "none", background: "#3a3a3a", color: "#ddd", borderRadius: 8, cursor: "pointer" };
-const hintRow = { display: "flex", alignItems: "flex-start", gap: 8, color: "#9a9a9a", fontSize: 13, lineHeight: 1.45, maxWidth: 520 };
-const sectionLabel = { fontSize: 13, fontWeight: 850, color: "#d8d8d8", marginBottom: 10 };
+const flowBox = { position: "relative", border: "1px solid #EDE7DD", background: "#FBF8F3", color: "#17202E", borderRadius: 12, padding: "10px 12px", fontSize: 13.5, fontWeight: 850 };
+const miniRemove = { marginLeft: 8, border: "none", background: "#EDE7DD", color: "#64748B", borderRadius: 8, cursor: "pointer" };
+const hintRow = { display: "flex", alignItems: "flex-start", gap: 8, color: "#94A3B8", fontSize: 13, lineHeight: 1.45, maxWidth: 520 };
+const sectionLabel = { fontSize: 13, fontWeight: 850, color: "#64748B", marginBottom: 10 };
 const emailCard = { width: 600, maxWidth: "100%", margin: "0 auto", background: "#ffffff", borderRadius: 12, overflow: "hidden", boxShadow: "0 12px 40px rgba(25,25,25,.08)" };
 const emailStepDot = { flex: "0 0 24px", height: 24, borderRadius: 999, background: "#FD5000", color: "#fff", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" };
 const emailCta = { display: "inline-block", background: "#FD5000", color: "#fff", border: "none", fontWeight: 700, fontSize: 16, padding: "15px 34px", borderRadius: 8, cursor: "pointer" };
@@ -3569,17 +3569,17 @@ const jobHighlight = { flex: 1, border: "1px solid #EEF0F2", borderRadius: 11, p
 const jobChip = { display: "inline-flex", alignItems: "center", border: "1px solid #E7E3DC", background: "#FAFAF9", color: "#374151", borderRadius: 20, padding: "5px 11px", fontSize: 12, fontWeight: 800 };
 const jobRoleChip = { display: "inline-flex", alignItems: "center", borderRadius: 20, background: "#F3F0FF", color: "#5B21B6", padding: "4px 10px", fontSize: 11.5, fontWeight: 850, flexShrink: 0 };
 const jobAvatar = { width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, flexShrink: 0 };
-const summaryChip = { display: "inline-flex", alignItems: "center", border: "1px solid #333", background: "#232323", color: "#e2e2e2", borderRadius: 20, padding: "6px 12px", fontSize: 12.5, fontWeight: 800 };
-const fetchSpinner = { width: 16, height: 16, borderRadius: "50%", border: "2px solid #333", borderTopColor: "#8f8f8f", animation: "lh-spin .7s linear infinite", flexShrink: 0, display: "inline-block" };
-const systemCard = (active) => ({ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 74, borderRadius: 12, border: `1px solid ${active ? "#e5e5e5" : "#303030"}`, background: active ? "#242424" : "#171717", padding: "12px 16px", cursor: "pointer", textAlign: "left" });
+const summaryChip = { display: "inline-flex", alignItems: "center", border: "1px solid #EDE7DD", background: "#FFFFFF", color: "#64748B", borderRadius: 20, padding: "6px 12px", fontSize: 12.5, fontWeight: 800 };
+const fetchSpinner = { width: 16, height: 16, borderRadius: "50%", border: "2px solid #EDE7DD", borderTopColor: "#94A3B8", animation: "lh-spin .7s linear infinite", flexShrink: 0, display: "inline-block" };
+const systemCard = (active) => ({ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 74, borderRadius: 12, border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#EDE7DD"}`, background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF", padding: "12px 16px", cursor: "pointer", textAlign: "left" });
 const systemLogoTile = { width: 46, height: 46, borderRadius: 10, background: "#fff", border: "1px solid #e5e7eb", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden", padding: 6 };
-const successPill = { display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(26,122,60,.18)", border: "1px solid rgba(52,168,95,.45)", color: "#7ee2a2", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 900 };
-const recapStatCard = { flex: "1 1 118px", border: "1px solid #2a2a2a", background: "#1a1a1a", borderRadius: 12, padding: "14px 15px" };
-const recapCard = { display: "grid", gridTemplateColumns: "36px 1fr", gap: 14, alignItems: "start", border: "1px solid #2a2a2a", background: "#1a1a1a", borderRadius: 12, padding: "14px 16px" };
-const recapIconTile = { width: 36, height: 36, borderRadius: 10, background: "#242424", border: "1px solid #333", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#e8e8e8", flexShrink: 0 };
+const successPill = { display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(26,122,60,.18)", border: "1px solid rgba(52,168,95,.45)", color: "#16A34A", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 900 };
+const recapStatCard = { flex: "1 1 118px", border: "1px solid #EDE7DD", background: "#FFFFFF", borderRadius: 12, padding: "14px 15px" };
+const recapCard = { display: "grid", gridTemplateColumns: "36px 1fr", gap: 14, alignItems: "start", border: "1px solid #EDE7DD", background: "#FFFFFF", borderRadius: 12, padding: "14px 16px" };
+const recapIconTile = { width: 36, height: 36, borderRadius: 10, background: "#F1EBE1", border: "1px solid #EDE7DD", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#64748B", flexShrink: 0 };
 const heroPill = { position: "absolute", top: 22, left: 26, display: "inline-flex", alignItems: "center", gap: 9, background: "rgba(17,17,17,.62)", backdropFilter: "blur(6px)", color: "#fff", borderRadius: 999, padding: "8px 16px", fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" };
-const darkLink = { border: "none", background: "transparent", color: "#dcdcdc", cursor: "pointer", fontSize: 14, fontWeight: 800 };
-const darkMutedLink = { border: "none", background: "transparent", color: "#8a8a8a", cursor: "pointer", fontSize: 14, fontWeight: 800 };
+const darkLink = { border: "none", background: "transparent", color: "#64748B", cursor: "pointer", fontSize: 14, fontWeight: 800 };
+const darkMutedLink = { border: "none", background: "transparent", color: "#94A3B8", cursor: "pointer", fontSize: 14, fontWeight: 800 };
 const darkOption = (active) => ({
   display: "flex",
   alignItems: "center",
@@ -3587,13 +3587,13 @@ const darkOption = (active) => ({
   width: "100%",
   minHeight: 56,
   borderRadius: 12,
-  border: `1px solid ${active ? "#e5e5e5" : "#303030"}`,
-  background: active ? "#242424" : "#171717",
+  border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#EDE7DD"}`,
+  background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF",
   padding: "12px 16px",
   cursor: "pointer",
   textAlign: "left",
 });
-const radioMark = (active) => ({ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${active ? "#f4f4f4" : "#444"}`, background: active ? "#f4f4f4" : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
-const chipButton = (active) => ({ display: "inline-flex", alignItems: "center", gap: 8, border: `1px solid ${active ? "#e6e6e6" : "#333"}`, background: active ? "#252525" : "#171717", color: "#f1f1f1", borderRadius: 12, padding: "10px 13px", cursor: "pointer", fontSize: 14, fontWeight: 800 });
-const checkBox = (active) => ({ width: 20, height: 20, borderRadius: 6, background: active ? "#f1f1f1" : "transparent", color: "#111", border: `1px solid ${active ? "#f1f1f1" : "#444"}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 });
-const choiceTile = (active) => ({ border: `1px solid ${active ? "#eee" : "#333"}`, background: active ? "#282828" : "#171717", color: "#f4f4f4", borderRadius: 12, padding: "16px 12px", cursor: "pointer", fontWeight: 900 });
+const radioMark = (active) => ({ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${active ? "var(--z-brand, #FD5000)" : "#DCD3C6"}`, background: active ? "var(--z-brand, #FD5000)" : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+const chipButton = (active) => ({ display: "inline-flex", alignItems: "center", gap: 8, border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#EDE7DD"}`, background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF", color: "#17202E", borderRadius: 12, padding: "10px 13px", cursor: "pointer", fontSize: 14, fontWeight: 800 });
+const checkBox = (active) => ({ width: 20, height: 20, borderRadius: 6, background: active ? "var(--z-brand, #FD5000)" : "transparent", color: "#fff", border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#DCD3C6"}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900 });
+const choiceTile = (active) => ({ border: `1px solid ${active ? "var(--z-brand, #FD5000)" : "#EDE7DD"}`, background: active ? "var(--z-brand-bg, #FFF0E8)" : "#FFFFFF", color: "#17202E", borderRadius: 12, padding: "16px 12px", cursor: "pointer", fontWeight: 900 });
