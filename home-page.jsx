@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { readOnboardingState, migrationProgress, readPhase, setPhase, startMigration, readCardStatus, setCardStatus as persistCardStatus } from "./migrationState.js";
 import { Modal, Field, ArrowRight } from "./onboarding/ui.jsx";
-import { CreditCard, Plus, Check, ArrowUpRight } from "lucide-react";
+import { CreditCard, Plus, Check, ArrowUpRight, Smartphone } from "lucide-react";
 
 const ACCENT = "#FD5000";
 const ACCENT_DARK = "#D54400";
@@ -194,6 +194,9 @@ export function SetupJourney({ prog, onStartMigration }) {
   const [cardOpen, setCardOpen] = useState(false);
   const setCard = (status) => { setCardState(status); persistCardStatus(status); setCardOpen(false); };
 
+  // "Get the Zuper mobile app" step — CTA opens a QR-code popup.
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const migrating = prog.active;
   const migrated = prog.done;
   const completedFraction = 1 + (migrated ? 1 : migrating ? prog.pct : 0);
@@ -222,7 +225,7 @@ export function SetupJourney({ prog, onStartMigration }) {
 
       {/* Body */}
       <div style={{ marginTop: 18 }}>
-        {phase === 1 && <PhaseGettingStarted prog={prog} totalPct={phase1Pct} onStartMigration={onStartMigration} cardStatus={cardStatus} onOpenCard={() => setCardOpen(true)} />}
+        {phase === 1 && <PhaseGettingStarted prog={prog} totalPct={phase1Pct} onStartMigration={onStartMigration} cardStatus={cardStatus} onOpenCard={() => setCardOpen(true)} onOpenMobile={() => setMobileOpen(true)} />}
         {phase === 2 && <PhaseReview />}
         {phase === 3 && <PhaseIntegrations />}
         {phase === 4 && <PhaseAutomation />}
@@ -255,9 +258,41 @@ export function SetupJourney({ prog, onStartMigration }) {
         onSave={() => setCard("added")}
         onSkip={() => setCard("skipped")}
       />
+      <AppQRModal open={mobileOpen} onClose={() => setMobileOpen(false)} />
     </div>
   );
 }
+
+// ─── Mobile-app QR popup ─────────────────────────────────────────────────────
+const APP_DOWNLOAD_URL = "https://zuper.co/mobile-app";
+function AppQRModal({ open, onClose }) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=210x210&margin=6&data=${encodeURIComponent(APP_DOWNLOAD_URL)}`;
+  return (
+    <Modal open={open} onClose={onClose} maxWidth={400}>
+      <div style={{ padding: "28px 28px 26px", textAlign: "center" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 11, background: NEUTRAL_TILE, color: INK, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+          <Smartphone size={21} />
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 850, color: TEXT_PRIMARY }}>Get the Zuper mobile app</div>
+        <div style={{ fontSize: 14, color: TEXT_SEC, lineHeight: 1.5, margin: "6px auto 20px", maxWidth: 300 }}>
+          Scan the code with your phone to run jobs, capture photos, and update statuses from the field.
+        </div>
+
+        <div style={{ display: "inline-flex", padding: 14, background: "#fff", border: `1px solid ${CARD_LINE}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <img src={qrSrc} alt="QR code to download the Zuper mobile app" width={186} height={186} style={{ display: "block", borderRadius: 6 }} />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 20 }}>
+          <a href={APP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={storePill}> App Store</a>
+          <a href={APP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={storePill}>▶ Google Play</a>
+        </div>
+        <div style={{ fontSize: 12, color: TEXT_MUT, marginTop: 14 }}>Point your phone camera at the code to open the link.</div>
+      </div>
+    </Modal>
+  );
+}
+
+const storePill = { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: INK, border: `1px solid ${OUTLINE_BORDER}`, borderRadius: 10, padding: "9px 16px", fontSize: 13.5, fontWeight: 650, textDecoration: "none", cursor: "pointer" };
 
 // ─── Card on file (reuses the onboarding card screen) ────────────────────────
 function CardOnFileModal({ open, onClose, onSave, onSkip }) {
@@ -305,7 +340,7 @@ function CardOnFileModal({ open, onClose, onSave, onSkip }) {
 }
 
 // Phase 1 — the onboarding + migration stepper.
-function PhaseGettingStarted({ prog, totalPct, onStartMigration, cardStatus = "none", onOpenCard }) {
+function PhaseGettingStarted({ prog, totalPct, onStartMigration, cardStatus = "none", onOpenCard, onOpenMobile }) {
   const migrating = prog.active;
   const migrated = prog.done;
   const cardAdded = cardStatus === "added";
@@ -345,6 +380,14 @@ function PhaseGettingStarted({ prog, totalPct, onStartMigration, cardStatus = "n
       status: cardAdded ? "done" : "pending",
       cta: cardAdded ? null : "Add card",
       onCta: onOpenCard,
+    },
+    {
+      n: 6,
+      title: "Get the Zuper mobile app",
+      desc: "Run jobs, capture photos, and update statuses from the field.",
+      status: "pending",
+      cta: "Get the app",
+      onCta: onOpenMobile,
     },
   ];
 

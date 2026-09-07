@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { readOnboardingState, migrationProgress, readProfile, startMigration } from "./migrationState.js";
 import { SetupJourney } from "./home-page.jsx";
 import { T, Modal, GlobalStyle, LogoMark } from "./onboarding/ui.jsx";
+import { Sidebar, TopBar, ContentToolbar, PromptField, DotGrid } from "./sense-home.jsx";
 import {
   Search, Bell, HelpCircle, LifeBuoy, MessageCircle, CalendarClock,
   Bot, Ticket, Compass, Send, ArrowRight, PartyPopper, ChevronRight, PlayCircle, Sparkles,
@@ -72,65 +73,70 @@ export default function HomeAfterOnboarding() {
   const [supportOpen, setSupportOpen] = useState(false);
   const [ceoOpen, setCeoOpen] = useState(false);
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
-    <div style={{ minHeight: "100vh", background: PAGE_BG, fontFamily: T.font, color: T.text }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#fff", fontFamily: T.font, color: T.text }}>
       <GlobalStyle />
-      <div style={{ maxWidth: 1160, margin: "0 auto", padding: "36px 32px 96px" }}>
-        {/* ── Header ── */}
-        <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 26 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <LogoMark name={companyName} src={profile.logo || undefined} size={48} radius={13} />
-            <div>
-              <h1 style={{ fontSize: 30, fontWeight: 850, letterSpacing: "-0.02em", margin: 0, color: T.text }}>
-                Hello, {firstName} <span style={{ fontWeight: 400 }}>👋</span>
+      <style>{`.ho-scroll::-webkit-scrollbar { width: 10px; } .ho-scroll::-webkit-scrollbar-thumb { background: #E7E3DC; border-radius: 6px; border: 3px solid #fff; }`}</style>
+      <Sidebar />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <TopBar />
+        <div className="ho-scroll" style={{ flex: 1, overflowY: "auto", background: "#fff" }}>
+          <ContentToolbar />
+          <div style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 40px 120px" }}>
+            {/* ── Hero: greeting + prompt (same box as #/home, onboarding context) ── */}
+            <div style={{ textAlign: "center", marginTop: 40 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 600, color: T.textSec }}>
+                <DotGrid /> {greeting}, {firstName}
+              </div>
+              <h1 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", color: "#1C1E21", margin: "12px 0 0", lineHeight: 1.1 }}>
+                What needs you today?
               </h1>
-              <p style={{ fontSize: 15.5, color: T.textSec, margin: "6px 0 0" }}>Here's what's going on today.</p>
+            </div>
+            <div style={{ maxWidth: 960, margin: "26px auto 0" }}>
+              <AskZuper firstName={firstName} />
+            </div>
+
+            {/* ── Getting started + onboarding widgets (context retained) ── */}
+            <div style={{ marginTop: 48 }}>
+              <SetupJourney prog={prog} onStartMigration={onStartMigration} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                <WidgetCard
+                  icon={Compass}
+                  title="Take me on a tour"
+                  body="See how to make the most of Zuper and run your whole business from one place — in about two minutes."
+                  primary={{ label: "Take the tour", IconR: ArrowRight }}
+                  secondary={{ label: "What's new" }}
+                />
+                <WidgetCard
+                  icon={PlayCircle}
+                  title="Mastering Zuper"
+                  body="Short, practical walkthroughs — from your first job and proposal to invoicing and automations."
+                  primary={{ label: "Watch videos", IconR: ArrowRight }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <WidgetCard
+                  icon={LifeBuoy}
+                  title="Reach out to onboarding team"
+                  body="Stuck on something during setup? Your dedicated onboarding team can jump on chat or a quick call."
+                  primary={{ label: "Contact onboarding", onClick: () => setSupportOpen(true) }}
+                />
+                <WidgetCard
+                  icon={Send}
+                  title="Write to CEO"
+                  body="Have feedback or a big idea? Send it straight to the top — our CEO reads every message personally."
+                  primary={{ label: "Write a message", onClick: () => setCeoOpen(true) }}
+                />
+              </div>
+
+              <CommunityCard />
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 4 }}>
-            <IconBtn icon={Search} />
-            <IconBtn icon={HelpCircle} />
-            <IconBtn icon={Bell} dot />
-          </div>
-        </header>
-
-        {/* ── Ask Zuper: an AI prompt box to learn, set up, and configure ── */}
-        <AskZuper firstName={firstName} />
-
-        {/* ── Row 1: the onboarding widget spans the full dashboard width ── */}
-        <SetupJourney prog={prog} onStartMigration={onStartMigration} />
-
-        {/* ── Row 2: take a tour + onboarding videos ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-          <WidgetCard
-            icon={Compass}
-            title="Take me on a tour"
-            body="See how to make the most of Zuper and run your whole business from one place — in about two minutes."
-            primary={{ label: "Take the tour", IconR: ArrowRight }}
-            secondary={{ label: "What's new" }}
-          />
-          <WidgetCard
-            icon={PlayCircle}
-            title="Mastering Zuper"
-            body="Short, practical walkthroughs — from your first job and proposal to invoicing and automations."
-            primary={{ label: "Watch videos", IconR: ArrowRight }}
-          />
-        </div>
-
-        {/* ── Row 3: onboarding team + write to CEO ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <WidgetCard
-            icon={LifeBuoy}
-            title="Reach out to onboarding team"
-            body="Stuck on something during setup? Your dedicated onboarding team can jump on chat or a quick call."
-            primary={{ label: "Contact onboarding", onClick: () => setSupportOpen(true) }}
-          />
-          <WidgetCard
-            icon={Send}
-            title="Write to CEO"
-            body="Have feedback or a big idea? Send it straight to the top — our CEO reads every message personally."
-            primary={{ label: "Write a message", onClick: () => setCeoOpen(true) }}
-          />
         </div>
       </div>
 
@@ -152,7 +158,6 @@ const ASK_SUGGESTIONS = [
 function AskZuper({ firstName }) {
   const [q, setQ] = useState("");
   const [asked, setAsked] = useState(null);
-  const [focus, setFocus] = useState(false);
   const ask = (text) => {
     const t = (text ?? q).trim();
     if (!t) return;
@@ -160,41 +165,24 @@ function AskZuper({ firstName }) {
     setQ("");
   };
   return (
-    <div style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 18, padding: "22px 24px 20px", marginBottom: 20, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: INK, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Sparkles size={19} />
-        </div>
-        <div>
-          <div style={{ fontSize: 16.5, fontWeight: 800, color: INK, lineHeight: 1.2 }}>Ask Zuper</div>
-          <div style={{ fontSize: 13.5, color: T.textSec, marginTop: 2 }}>Understand, set up, or configure anything in your workspace — just ask.</div>
-        </div>
-      </div>
+    <div>
+      {/* Same prompt box as #/home, with onboarding context */}
+      <PromptField
+        value={q}
+        onChange={setQ}
+        onSubmit={() => ask()}
+        placeholder="Ask how to create a job, set up payments, configure statuses…"
+      />
 
-      {/* Prompt input */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1.5px solid ${focus ? INK : "#E4E3E1"}`, borderRadius: 12, padding: "6px 6px 6px 14px", transition: "border-color 130ms ease" }}>
-        <Sparkles size={17} color={T.textMut} style={{ flexShrink: 0 }} />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); ask(); } }}
-          placeholder="How do I create a job, set up payments, configure statuses…"
-          style={{ flex: 1, border: "none", outline: "none", fontFamily: T.font, fontSize: 15, color: T.text, background: "transparent", minWidth: 0 }}
-        />
-        <PrimaryBtn onClick={() => ask()} IconR={ArrowRight}>Ask</PrimaryBtn>
-      </div>
-
-      {/* Suggestion chips */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+      {/* Suggestion chips (retained from onboarding) */}
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 16 }}>
         {ASK_SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => ask(s)}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#ECECEA")}
             onMouseLeave={(e) => (e.currentTarget.style.background = TILE_BG)}
-            style={{ border: "none", background: TILE_BG, color: T.textSec, borderRadius: 999, padding: "7px 13px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: T.font, transition: "background 120ms ease" }}>
+            style={{ border: "none", background: TILE_BG, color: T.textSec, borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: T.font, transition: "background 120ms ease" }}>
             {s}
           </button>
         ))}
@@ -202,7 +190,7 @@ function AskZuper({ firstName }) {
 
       {/* Mock answer (prototype — canned, no backend) */}
       {asked && (
-        <div style={{ marginTop: 16, background: TILE_BG, borderRadius: 12, padding: "14px 16px" }}>
+        <div style={{ marginTop: 18, background: TILE_BG, borderRadius: 12, padding: "14px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 800, color: INK }}>
             <Sparkles size={14} /> Zuper
           </div>
@@ -215,6 +203,40 @@ function AskZuper({ firstName }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Full-width roofing community invite (NO QUIT), logo anchored at bottom ──
+const LIME = "#C4F135";
+function CommunityCard() {
+  const [hov, setHov] = useState(false);
+  return (
+    <div style={{ marginTop: 20, background: INK, borderRadius: 18, padding: "28px 32px 24px", color: "#fff", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 28, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 640 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: LIME }}>The No Quit community</div>
+          <h2 style={{ fontSize: 25, fontWeight: 850, margin: "10px 0 0", lineHeight: 1.18 }}>You don't roof alone.</h2>
+          <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "rgba(255,255,255,.72)", margin: "10px 0 20px" }}>
+            Join No Quit — thousands of roofers who trade playbooks, pricing, and hard-won advice. Connect with like-minded contractors who've been exactly where you are.
+          </p>
+          <button
+            onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, background: hov ? "#D4FF4A" : LIME, color: "#111", border: "none", borderRadius: 10, padding: "11px 20px", fontSize: 14.5, fontWeight: 750, cursor: "pointer", fontFamily: T.font, transition: "background 130ms ease" }}>
+            Join the community <ArrowRight size={17} />
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, paddingTop: 6 }}>
+          <div style={{ fontSize: 30, fontWeight: 900, color: LIME, lineHeight: 1 }}>12,000+</div>
+          <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.6)" }}>roofers already in</div>
+        </div>
+      </div>
+
+      {/* No Quit community logo anchored at the bottom, with the Maven partnership credit */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginTop: 24, paddingTop: 18, borderTop: "1px solid rgba(255,255,255,.12)" }}>
+        <img src="/logo-noquit.png" alt="No Quit" style={{ height: 34, width: "auto", display: "block" }} />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,.5)" }}>In partnership with Maven Roofing</span>
+      </div>
     </div>
   );
 }

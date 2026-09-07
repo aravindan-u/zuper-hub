@@ -6,6 +6,7 @@ import OnboardingApp from "./onboarding/OnboardingApp.jsx";
 import LeadHubOnboardingApp from "./onboarding/LeadHubOnboardingApp.jsx";
 import LoginFirstOnboardingApp from "./onboarding/LoginFirstOnboardingApp.jsx";
 import HomeAfterOnboarding from "./home-after-onboarding.jsx";
+import SenseHome from "./sense-home.jsx";
 
 // Simple hash router. Opening the link lands on the product home page; the
 // setup flow lives at #/setup, and the other onboarding options keep their routes.
@@ -25,6 +26,9 @@ function Root() {
     return <LoginFirstOnboardingApp onExit={toHome} />;
   }
   if (hash === "#/home") {
+    return <SenseHome />;
+  }
+  if (hash === "#/home-onboarding") {
     return <HomeAfterOnboarding />;
   }
   if (hash === "#/onboarding") {
