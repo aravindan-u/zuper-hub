@@ -87,13 +87,14 @@ export default function HomeAfterOnboarding() {
           <ContentToolbar />
           <div style={{ maxWidth: 1080, margin: "0 auto", padding: "8px 40px 120px" }}>
             {/* ── Hero: greeting + prompt (same box as #/home, onboarding context) ── */}
-            <div style={{ textAlign: "center", marginTop: 40 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 600, color: T.textSec }}>
-                <DotGrid /> {greeting}, {firstName}
-              </div>
-              <h1 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", color: "#1C1E21", margin: "12px 0 0", lineHeight: 1.1 }}>
-                What needs you today?
+            <div style={{ textAlign: "center", marginTop: 46 }}>
+              <div style={{ marginBottom: 12 }}><DotGrid /></div>
+              <h1 style={{ fontSize: 42, fontWeight: 800, letterSpacing: "-0.03em", color: "#1C1E21", margin: 0, lineHeight: 1.1 }}>
+                {greeting}, {firstName}
               </h1>
+              <p style={{ fontSize: 16.5, color: T.textSec, margin: "12px 0 0" }}>
+                I'm here to help you learn your way around Zuper.
+              </p>
             </div>
             <div style={{ maxWidth: 960, margin: "26px auto 0" }}>
               <AskZuper firstName={firstName} />

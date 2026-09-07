@@ -18,9 +18,9 @@ function Root() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
-  // After onboarding, land on the new sidebar-less homepage (#/home) rather than
-  // the full product shell.
-  const toHome = () => { window.location.hash = "#/home"; };
+  // After onboarding, land on the onboarding-flavored dashboard (#/home-onboarding)
+  // — the Sense chrome with the Getting Started widgets and setup Ask-Zuper.
+  const toHome = () => { window.location.hash = "#/home-onboarding"; };
 
   if (hash === "#/setup") {
     return <LoginFirstOnboardingApp onExit={toHome} />;

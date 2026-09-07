@@ -194,8 +194,8 @@ export function SetupJourney({ prog, onStartMigration }) {
   const [cardOpen, setCardOpen] = useState(false);
   const setCard = (status) => { setCardState(status); persistCardStatus(status); setCardOpen(false); };
 
-  // "Get the Zuper mobile app" step — CTA opens a QR-code popup.
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // "Get the Zuper mobile app" step — iOS / Android CTAs each open a QR popup.
+  const [mobilePlatform, setMobilePlatform] = useState(null);
 
   const migrating = prog.active;
   const migrated = prog.done;
@@ -225,7 +225,7 @@ export function SetupJourney({ prog, onStartMigration }) {
 
       {/* Body */}
       <div style={{ marginTop: 18 }}>
-        {phase === 1 && <PhaseGettingStarted prog={prog} totalPct={phase1Pct} onStartMigration={onStartMigration} cardStatus={cardStatus} onOpenCard={() => setCardOpen(true)} onOpenMobile={() => setMobileOpen(true)} />}
+        {phase === 1 && <PhaseGettingStarted prog={prog} totalPct={phase1Pct} onStartMigration={onStartMigration} cardStatus={cardStatus} onOpenCard={() => setCardOpen(true)} onOpenMobile={(p) => setMobilePlatform(p)} />}
         {phase === 2 && <PhaseReview />}
         {phase === 3 && <PhaseIntegrations />}
         {phase === 4 && <PhaseAutomation />}
@@ -258,33 +258,46 @@ export function SetupJourney({ prog, onStartMigration }) {
         onSave={() => setCard("added")}
         onSkip={() => setCard("skipped")}
       />
-      <AppQRModal open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <AppQRModal platform={mobilePlatform} onClose={() => setMobilePlatform(null)} />
     </div>
   );
 }
 
-// ─── Mobile-app QR popup ─────────────────────────────────────────────────────
-const APP_DOWNLOAD_URL = "https://zuper.co/mobile-app";
-function AppQRModal({ open, onClose }) {
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=210x210&margin=6&data=${encodeURIComponent(APP_DOWNLOAD_URL)}`;
+// ─── Mobile-app QR popup (platform-specific) ─────────────────────────────────
+function AppleLogo({ size = 20, color = "currentColor" }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden><path d="M16.365 1.43c0 1.14-.49 2.27-1.18 3.08-.74.9-1.99 1.57-2.98 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.57-2.27 1.2-2.98.8-.94 2.15-1.64 3.25-1.68.03.13.05.28.05.43zm4.56 15.71c-.03.07-.46 1.58-1.51 3.12-.95 1.34-1.94 2.71-3.43 2.71-1.52 0-1.9-.88-3.63-.88-1.7 0-2.3.91-3.67.91-1.38 0-2.33-1.26-3.43-2.8-1.29-1.82-2.32-4.63-2.32-7.28 0-4.28 2.8-6.55 5.55-6.55 1.45 0 2.68.95 3.6.95.87 0 2.22-1.01 3.9-1.01.61 0 2.89.06 4.37 2.19-.13.09-2.38 1.37-2.38 4.19 0 3.26 2.85 4.42 2.95 4.45z"/></svg>;
+}
+function AndroidLogo({ size = 20, color = "#3DDC84" }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden><path d="M17.52 9.32l1.99-3.45a.42.42 0 10-.72-.42l-2.02 3.5A12.2 12.2 0 0012 7.5c-1.82 0-3.53.42-5.14 1.14L4.85 5.14a.42.42 0 10-.72.42l1.99 3.45C2.6 11.35.63 14.7.31 18.5h23.38c-.32-3.8-2.29-7.15-6.17-9.18zM7.03 15.34a1.15 1.15 0 110-2.3 1.15 1.15 0 010 2.3zm9.94 0a1.15 1.15 0 110-2.3 1.15 1.15 0 010 2.3z"/></svg>;
+}
+
+const STORES = {
+  ios: { url: "https://apps.apple.com/app/zuper-field-service/id1234567890", store: "App Store", sub: "iPhone & iPad", Logo: AppleLogo, logoColor: "#111" },
+  android: { url: "https://play.google.com/store/apps/details?id=com.zuper.app", store: "Google Play", sub: "Android phones & tablets", Logo: AndroidLogo, logoColor: "#3DDC84" },
+};
+
+function AppQRModal({ platform, onClose }) {
+  const s = STORES[platform] || STORES.ios;
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=210x210&margin=6&data=${encodeURIComponent(s.url)}`;
   return (
-    <Modal open={open} onClose={onClose} maxWidth={400}>
+    <Modal open={platform != null} onClose={onClose} maxWidth={400}>
       <div style={{ padding: "28px 28px 26px", textAlign: "center" }}>
-        <div style={{ width: 42, height: 42, borderRadius: 11, background: NEUTRAL_TILE, color: INK, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-          <Smartphone size={21} />
+        <div style={{ width: 46, height: 46, borderRadius: 12, background: NEUTRAL_TILE, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+          <s.Logo size={24} color={s.logoColor} />
         </div>
-        <div style={{ fontSize: 20, fontWeight: 850, color: TEXT_PRIMARY }}>Get the Zuper mobile app</div>
+        <div style={{ fontSize: 20, fontWeight: 850, color: TEXT_PRIMARY }}>Get Zuper for {platform === "android" ? "Android" : "iOS"}</div>
         <div style={{ fontSize: 14, color: TEXT_SEC, lineHeight: 1.5, margin: "6px auto 20px", maxWidth: 300 }}>
-          Scan the code with your phone to run jobs, capture photos, and update statuses from the field.
+          Scan this code with your {s.sub.split(" ")[0]} to install Zuper — run jobs, capture photos, and update statuses from the field.
         </div>
 
         <div style={{ display: "inline-flex", padding: 14, background: "#fff", border: `1px solid ${CARD_LINE}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <img src={qrSrc} alt="QR code to download the Zuper mobile app" width={186} height={186} style={{ display: "block", borderRadius: 6 }} />
+          <img src={qrSrc} alt={`QR code to download Zuper on ${s.store}`} width={186} height={186} style={{ display: "block", borderRadius: 6 }} />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 20 }}>
-          <a href={APP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={storePill}> App Store</a>
-          <a href={APP_DOWNLOAD_URL} target="_blank" rel="noreferrer" style={storePill}>▶ Google Play</a>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+          <a href={s.url} target="_blank" rel="noreferrer" style={storePill}>
+            <s.Logo size={16} color={s.logoColor} /> {s.store}
+          </a>
         </div>
         <div style={{ fontSize: 12, color: TEXT_MUT, marginTop: 14 }}>Point your phone camera at the code to open the link.</div>
       </div>
@@ -292,7 +305,7 @@ function AppQRModal({ open, onClose }) {
   );
 }
 
-const storePill = { display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: INK, border: `1px solid ${OUTLINE_BORDER}`, borderRadius: 10, padding: "9px 16px", fontSize: 13.5, fontWeight: 650, textDecoration: "none", cursor: "pointer" };
+const storePill = { display: "inline-flex", alignItems: "center", gap: 8, background: "#fff", color: INK, border: `1px solid ${OUTLINE_BORDER}`, borderRadius: 10, padding: "10px 18px", fontSize: 13.5, fontWeight: 650, textDecoration: "none", cursor: "pointer" };
 
 // ─── Card on file (reuses the onboarding card screen) ────────────────────────
 function CardOnFileModal({ open, onClose, onSave, onSkip }) {
@@ -373,21 +386,13 @@ function PhaseGettingStarted({ prog, totalPct, onStartMigration, cardStatus = "n
     },
     {
       n: 5,
-      title: cardAdded ? "Card on file" : "Add a card on file",
-      desc: cardAdded ? "Billing starts only when your trial ends — nothing is charged today."
-        : cardStatus === "skipped" ? "Skipped for now — add one anytime to keep your workspace running after the trial."
-        : "Keep your workspace running when your 14-day trial ends. Nothing is charged today.",
-      status: cardAdded ? "done" : "pending",
-      cta: cardAdded ? null : "Add card",
-      onCta: onOpenCard,
-    },
-    {
-      n: 6,
       title: "Get the Zuper mobile app",
       desc: "Run jobs, capture photos, and update statuses from the field.",
       status: "pending",
-      cta: "Get the app",
-      onCta: onOpenMobile,
+      ctas: [
+        { label: "iOS", Logo: AppleLogo, logoColor: "#111", onClick: () => onOpenMobile("ios") },
+        { label: "Android", Logo: AndroidLogo, logoColor: "#3DDC84", onClick: () => onOpenMobile("android") },
+      ],
     },
   ];
 
@@ -694,8 +699,17 @@ function StepRow({ step, isLast }) {
         )}
       </div>
 
-      {/* Step action */}
-      {step.cta && !done && (
+      {/* Step action — either a single CTA or a set of platform CTAs */}
+      {step.ctas && !done ? (
+        <div style={{ alignSelf: "center", flexShrink: 0, display: "flex", gap: 8 }}>
+          {step.ctas.map((c) => (
+            <button key={c.label} onClick={c.onClick}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#fff", color: INK, border: `1px solid ${OUTLINE_BORDER}`, borderRadius: 10, padding: "9px 16px", fontSize: 14, fontWeight: 650, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <c.Logo size={16} color={c.logoColor} /> {c.label}
+            </button>
+          ))}
+        </div>
+      ) : step.cta && !done ? (
         <button
           disabled={step.locked}
           onClick={step.onCta}
@@ -709,7 +723,7 @@ function StepRow({ step, isLast }) {
           }}>
           {step.cta}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
